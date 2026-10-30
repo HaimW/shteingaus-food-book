@@ -28,7 +28,7 @@ const facts = [
 ---
 
 <Base title={title}>
-  <p class="back"><a href={withBase('/')}>→ לכל המתכונים</a></p>
+  <p class="back"><a href={withBase('/')}><span aria-hidden="true">→</span> לכל המתכונים</a></p>
 
   <article class="recipe">
     <header class="recipe-header">
@@ -55,7 +55,7 @@ const facts = [
           src={image}
           alt={title}
           widths={[600, 1000, 1400]}
-          sizes="(min-width: 72rem) 72rem, 100vw"
+          sizes="(min-width: 48rem) 48rem, 100vw"
           loading="eager"
         />
       )

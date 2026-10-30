@@ -5,11 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Least privilege: read the repo, publish to Pages via OIDC.
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# Least privilege: nothing by default; each job requests what it needs.
+permissions: {}
 
 # One deploy at a time; don't cancel a deploy that is already running.
 concurrency:
@@ -19,6 +16,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,6 +51,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
