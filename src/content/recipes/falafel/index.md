@@ -8,6 +8,7 @@ meal:
   - ארוחת ערב
 dishType:
   - מנה עיקרית
+rating: 5
 image: ./photo-1.webp
 ingredients:
   - 500 גרם גרגירי חומוס, מושרים במים לילה
@@ -21,7 +22,7 @@ ingredients:
   - רבע כוס מים
   - שמן לטיגון עמוק
 driveId: 10UdkcfezE0up8OC8X2mPcLeIMzC63A_xUWUUF-xA4wY
-driveModified: 2026-10-30T20:08:31.681Z
+driveModified: 2026-10-30T21:41:11.280Z
 ---
 
 ## אופן ההכנה
