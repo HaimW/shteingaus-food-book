@@ -4,7 +4,9 @@
 //   converted and written to src/content/recipes/<slug>/index.md + photos;
 // - docs no longer in the folder have their recipe folder removed;
 // - unchanged docs are not touched;
-// - only recipes with a `driveId` are managed; hand-written recipes are left alone.
+// - only recipes with a `driveId` are managed; hand-written recipes are left alone;
+// - sub-folders are read too, and their name is a dish-type hint ("סלטים" -> סלט);
+// - "תבנית מתכון" template docs are skipped.
 // All network work and conversion happens before anything is written, so a real
 // error (credentials, API down) leaves the working tree untouched.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -12,7 +14,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { recipeIssues } from '../../src/lib/recipe-issues.ts';
 import { convertDoc, type RecipeDraft } from './convert.ts';
-import { DriveError, GOOGLE_DOC_MIME, type DriveClient, type DriveFile } from './drive.ts';
+import { DriveError, FOLDER_MIME, GOOGLE_DOC_MIME, type DriveClient, type DriveFile } from './drive.ts';
 import { processImage } from './images.ts';
 import { renderRecipe } from './render.ts';
 import { cleanSlug, isValidSlug, slugFromTitle, uniqueSlug } from './slug.ts';
@@ -121,6 +123,42 @@ interface Prepared {
   item: SyncItem;
 }
 
+/** The "תבנית מתכון" template docs (and unrenamed copies of them) are never published. */
+export const TEMPLATE_NAME = 'תבנית מתכון';
+export function isTemplate(name: string): boolean {
+  return name.trim().replace(/^(?:עותק של|Copy of)\s+/i, '').trim() === TEMPLATE_NAME;
+}
+
+/** Dish type implied by a sub-folder name, used only when the doc itself has none. */
+const FOLDER_HINTS: Array<[RegExp, string]> = [
+  [/סלט/, 'סלט'],
+  [/קינוח|עוגות|עוגה|מתוקים/, 'קינוח'],
+  [/תוספ/, 'תוספת'],
+  [/עיקרי|קציצ|בשר|עוף|דגים/, 'מנה עיקרית'],
+  [/מרק|לחם|מאפ|רטב|רוטב/, 'אחר'],
+];
+export function folderDishType(folderPath: string): string | undefined {
+  const name = folderPath.split('/').pop() ?? '';
+  return FOLDER_HINTS.find(([re]) => re.test(name))?.[1];
+}
+
+/** All files under the folder, sub-folders included (up to a few levels deep). */
+async function listTree(
+  drive: DriveClient,
+  folderId: string,
+  folder = '',
+  depth = 0,
+): Promise<Array<{ file: DriveFile; folder: string }>> {
+  const out: Array<{ file: DriveFile; folder: string }> = [];
+  for (const file of await drive.listFolder(folderId)) {
+    out.push({ file, folder });
+    if (file.mimeType === FOLDER_MIME && depth < 3) {
+      out.push(...(await listTree(drive, file.id, folder ? `${folder}/${file.name}` : file.name, depth + 1)));
+    }
+  }
+  return out;
+}
+
 /** Delete a managed recipe: its own folder (<slug>/index.md layout) or just the file. */
 function removeRecipeFiles(rec: ExistingRecipe, recipesDir: string): void {
   const dir = dirname(rec.path);
@@ -139,15 +177,14 @@ export async function syncRecipes(opts: SyncOptions): Promise<SyncResult> {
   for (const rec of existing) if (rec.driveId) managed.set(rec.driveId, [...(managed.get(rec.driveId) ?? []), rec]);
 
   const folder = await drive.getFolder(folderId);
-  const listing = await drive.listFolder(folderId);
-  const docs = listing.filter((f) => f.mimeType === GOOGLE_DOC_MIME);
+  const listing = await listTree(drive, folderId);
+  const folderOf = new Map(listing.map((e) => [e.file.id, e.folder]));
+  const docs = listing.filter((e) => e.file.mimeType === GOOGLE_DOC_MIME && !isTemplate(e.file.name)).map((e) => e.file);
   const skipped = listing
-    .filter((f) => f.mimeType !== GOOGLE_DOC_MIME)
-    .map((f) => ({
-      name: f.name,
-      reason: f.mimeType.endsWith('.folder')
-        ? 'תיקייה — רק מסמכים שנמצאים ישירות בתיקייה מסונכרנים'
-        : 'לא מסמך Google Docs — יש לפתוח ב-Google Docs ולבחור "קובץ ← שמירה כ-Google Docs"',
+    .filter((e) => e.file.mimeType !== GOOGLE_DOC_MIME && e.file.mimeType !== FOLDER_MIME)
+    .map(({ file: f, folder: dir }) => ({
+      name: dir ? `${dir}/${f.name}` : f.name,
+      reason: 'לא מסמך Google Docs — יש לפתוח ב-Google Docs ולבחור "קובץ ← שמירה כ-Google Docs"',
     }));
 
   if (docs.length === 0 && managed.size > 0 && !allowEmpty) {
@@ -200,6 +237,13 @@ export async function syncRecipes(opts: SyncOptions): Promise<SyncResult> {
     if (!htmlName) throw new DriveError(`The export of "${file.name}" contains no HTML document.`);
     const draft = convertDoc({ title: file.name, html: Buffer.from(files.get(htmlName)!).toString('utf8') });
     const notes = [...draft.notes];
+
+    // Sub-folder name as a category hint ("סלטים" -> סלט) when the doc has no dish type.
+    const hint = folderDishType(folderOf.get(file.id) ?? '');
+    if (hint && draft.fields.dishType.length === 0) {
+      draft.fields.dishType = [hint];
+      notes.push(`סוג המנה נקבע לפי התיקייה: ${hint}`);
+    }
 
     // Slug: valid doc field > slug this doc already has > transliterated title. Always unique.
     if (current) taken.delete(current.id);

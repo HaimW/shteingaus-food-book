@@ -1,7 +1,7 @@
 // In-memory Drive for tests and for `npm run sync -- --mock-drive <dir>` (no Google account needed).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { DriveError, GOOGLE_DOC_MIME, type DriveClient, type DriveFile } from './drive.ts';
+import { DriveError, FOLDER_MIME, GOOGLE_DOC_MIME, type DriveClient, type DriveFile } from './drive.ts';
 import { writeZip } from './zip.ts';
 
 export interface MockDoc {
@@ -12,8 +12,10 @@ export interface MockDoc {
   html?: string;
   /** Files referenced by the HTML as images/<name>. */
   images?: Record<string, Uint8Array>;
-  /** Non-doc files (e.g. an uploaded .docx not yet converted). */
+  /** Non-doc files (e.g. an uploaded .docx not yet converted, or a sub-folder). */
   mimeType?: string;
+  /** Id of the sub-folder this entry lives in (default: the root folder). */
+  parent?: string;
 }
 
 export class MemoryDrive implements DriveClient {
@@ -31,8 +33,11 @@ export class MemoryDrive implements DriveClient {
   }
 
   async listFolder(folderId: string): Promise<DriveFile[]> {
-    await this.getFolder(folderId);
-    return this.docs.map((d) => ({ id: d.id, name: d.name, mimeType: d.mimeType ?? GOOGLE_DOC_MIME, modifiedTime: d.modifiedTime }));
+    const isSub = this.docs.some((d) => d.id === folderId && d.mimeType === FOLDER_MIME);
+    if (!isSub) await this.getFolder(folderId);
+    return this.docs
+      .filter((d) => (isSub ? d.parent === folderId : !d.parent))
+      .map((d) => ({ id: d.id, name: d.name, mimeType: d.mimeType ?? GOOGLE_DOC_MIME, modifiedTime: d.modifiedTime }));
   }
 
   async exportZip(file: DriveFile): Promise<Uint8Array> {
