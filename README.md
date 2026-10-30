@@ -4,7 +4,23 @@ The Shteingaus family recipe book — a Hebrew (RTL) static site built with [Ast
 
 https://haimw.github.io/shteingaus-food-book/
 
-The full plan (requirements and phases) is in [`docs/build-plan.md`](docs/build-plan.md).
+## What it does
+
+- **91 family recipes** from a shared Google Drive folder ("מתכונים לאתר", with sub-folders לחם / קציצות / מרקים / סלטים). Google Docs are the single source of truth; the site is rebuilt from them.
+- **Hebrew search** over every word in every recipe (handles ו/ה/ב/ל… prefixes), meal filters (בוקר / צהריים / ערב / קינוח) and meal pages.
+- **מתכון אקראי** (random recipe) and **בנה לי ארוחה** (meal builder: main + side + salad [+ dessert], lock/re-roll, shareable link).
+- On every recipe: ingredients (red "מצרכים חסרים" if missing), **✓ נוסה** badge, **5-star rating**, **עריכה ב-Google Docs** link, **הדפסה** (print view). Problems (missing photo, ingredients, category) show a yellow **"צריך לתקן"** box and are listed on the unlisted `/needs-fixing/` page.
+- **Family buttons** (mark tested, rate, "סנכרן עכשיו", "הוסף מתכון" form) go through a Google Apps Script web app that runs as the signed-in family member and writes into the Google Doc.
+- **Sync**: daily GitHub Action (+ on demand) converts the Docs to Markdown + photos, commits, and deploys.
+
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [`docs/build-plan.md`](docs/build-plan.md) | Requirements, **current status, open items**, decisions log |
+| [`docs/google-drive-setup.md`](docs/google-drive-setup.md) | Google Cloud / service account / folder setup, the recipe template, adding recipes |
+| [`docs/apps-script-setup.md`](docs/apps-script-setup.md) | Family buttons: GitHub token, Apps Script web app, "הוסף מתכון" form |
+| `.agentsmith/tasks/` | Per-phase task records (what was built and verified) |
 
 ## Running locally
 
@@ -33,20 +49,23 @@ Other commands:
 
 ```
 src/content.config.ts      recipe schema (frontmatter fields, see build plan R2)
-src/content/recipes/       hand-written sample recipes (<slug>.md) + images/
 src/content/recipes/<slug>/ recipes synced from Google Drive: index.md + photo-N.webp (generated — edit the Google Doc)
+src/lib/config.ts          APPS_SCRIPT_URL, FORM_URL, SITE_URL (not secrets)
 src/pages/                 home, recipe pages (/recipes/<slug>/), meal pages, random, meal builder,
                            /needs-fixing/ (unlisted, noindex), 404
 scripts/drive-sync/        Google Doc -> Markdown converter, Drive client, `npm run sync`
+apps-script/               Google Apps Script web app + form (copied into script.google.com; see docs/apps-script-setup.md)
 src/layouts/, src/components/, src/styles/
 scripts/check-links.mjs    post-build link / base-path / RTL check
 .github/workflows/deploy.yml  build + deploy to GitHub Pages on push to main (also called by sync.yml)
 .github/workflows/sync.yml    daily + manual Drive sync -> commit to main -> deploy
 ```
 
-## Adding a recipe by hand
+## Adding a recipe
 
-Create `src/content/recipes/<slug>.md`:
+Normally: in Google Drive, copy **תבנית מתכון** in the right folder, fill it in, and press "סנכרן עכשיו" (or wait for the daily sync) — see [`docs/google-drive-setup.md`](docs/google-drive-setup.md). Or use the **הוסף מתכון** form once it is set up.
+
+By hand (rare — a file without `driveId` is never touched by the sync), create `src/content/recipes/<slug>.md`:
 
 ```md
 ---
@@ -57,7 +76,9 @@ dishType: [main]              # main | side | salad | dessert | other
 ingredients:
   - 2 כוסות קמח
 author: סבתא
-image: ./images/english-url-name.jpg
+tested: true                  # optional
+rating: 5                     # optional, 1–5
+image: ./english-url-name.jpg
 ---
 
 ## אופן ההכנה
@@ -75,6 +96,6 @@ In links and asset paths, always use the `withBase()` / `recipeUrl()` helpers fr
 
 Every push to `main` builds and deploys via GitHub Actions; so does every Drive sync that changed something. One-time setup in the GitHub repo: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
 
-## Sample content
+## Content
 
-The sample recipes and their SVG illustrations are placeholders made for this repo (no third-party images).
+Recipes are the Shteingaus family's own (imported once on 2026-10-30 from the family's Google Docs; see the build plan). The site and repo are public.

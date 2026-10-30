@@ -1,6 +1,6 @@
 # Build Plan — Shteingaus Food Book
 
-Status: **approved by owner** (2026-10-30). Sample existing doc to be shared in phase 4, once Drive is connected.
+Status: **approved by owner** (2026-10-30). Phases 1–4 live; phase 5 code live, form setup pending (see [Status](#status-2026-10-31) and [Open items](#open-items)).
 
 ## Goal
 
@@ -33,6 +33,8 @@ Each Google Doc becomes one Markdown file in `src/content/recipes/` plus its ima
 | `author` | no | family member the recipe comes from |
 | `image` | no | main photo (first image in the doc) |
 | `tags` | no | |
+| `tested` | no | doc row **נוסה** (כן/לא) — set by the "סמנו כנוסה" button (R13) or by hand |
+| `rating` | no | doc row **דירוג** (1–5) — set by the star bar (R13) or by hand |
 | `driveId`, `driveModified` | yes (auto) | link back to the source doc; written by the sync |
 
 Body: אופן ההכנה (steps), הערות (notes).
@@ -75,27 +77,30 @@ Recipe content never fails the build:
 - **Recipe template** (a Google Doc to copy):
   - top details table: ארוחה (meal), סוג מנה (dish type), מאת (author), מנות, זמן הכנה, זמן בישול, slug (optional);
   - headings (real Google Docs heading styles): מצרכים / אופן ההכנה / הערות;
-  - photos pasted anywhere in the doc; the first one is the main photo.
+  - photos pasted anywhere in the doc; the first one is the main photo;
+  - optional rows **נוסה** and **דירוג** (R13).
   - Parser also tolerates the existing docs' layout (to be matched against a sample from the owner) and plain bold lines as headings.
 - **Sync job** — GitHub Action:
   - runs **daily** on a schedule, and on demand (R8);
-  - lists the folder via the Google Drive API (service account with read-only access to the shared folder);
+  - lists the folder **and its sub-folders** via the Google Drive API (service account with read-only access to the shared folder);
+  - a sub-folder's name is a dish-type hint when the doc has none (סלטים → סלט, קציצות → מנה עיקרית, מרקים/לחם → אחר, קינוחים → קינוח);
+  - docs named **"תבנית מתכון"** (and unrenamed copies "עותק של תבנית מתכון") are templates and never published;
   - for each doc: if new or `modifiedTime` changed → export (HTML), convert to Markdown + frontmatter, download and compress images;
   - doc deleted/removed from the folder → recipe removed;
   - nothing changed → no commit, no deploy;
   - commits changes and builds + deploys in the same workflow (Action commits don't trigger other workflows).
 - **Never fails on content:** unparseable parts go into the body; missing fields → red section / "needs fixing" page. The job fails only on real errors (bad credentials, Drive API down), and then the live site stays as it was.
-- **Existing recipes:** the owner moves/copies the existing Google Docs into the folder (uploaded `.docx` files get converted to Google Docs format); the first sync imports them all. No separate import step.
+- **Existing recipes (done 2026-10-30, differently than first planned):** the originals in the wife's folder "מתכוני אוכל" (77 docs + 16 screenshots/photos, very mixed layouts) were **not** moved or edited. Claude read them all once and created cleaned-up copies in the template layout — with categories, slugs, translations of English recipes, transcribed screenshots/handwriting and cropped photos — in a new folder **"מתכונים לאתר"** (owned by yafim.sh@gmail.com, shared Editor with the wife). Content Claude had to add (missing steps/ingredients) is highlighted yellow in the docs and noted on the page. 91 recipes; the original folder stays as an archive.
 - **Credentials:** Google service account key stored as a GitHub Actions secret (`GOOGLE_SERVICE_ACCOUNT_KEY`); read-only Drive scope. Setup guide in `docs/google-drive-setup.md`.
 
 ### R8. "Sync now" button
-- A public static site cannot hold a GitHub token, so the button calls a small **Google Apps Script web app** owned by the owner:
-  - the Apps Script stores a fine-grained GitHub token (scope: this repo, Actions write only) in its script properties — never in the website;
+- A public static site cannot hold a GitHub token, so the button calls a small **Google Apps Script web app** (`apps-script/Code.gs`, `?action=sync`):
+  - the Apps Script stores a fine-grained GitHub token (scope: this repo, Actions write only) in its script properties (`GITHUB_TOKEN`) — never in the website;
   - on request it triggers the sync workflow (`workflow_dispatch`);
-  - cooldown: at most one sync per 5 minutes; extra presses get "סנכרון כבר רץ".
-- Button shows: "הסנכרון התחיל — האתר יתעדכן בעוד כ־3 דקות" and links to the run status.
-- Pressing it is harmless (sync is idempotent), so it is open to any visitor; it can be restricted to signed-in Google accounts later.
-- Setup steps included in `docs/google-drive-setup.md`.
+  - cooldown: at most one dispatch per minute; extra presses get "סנכרון כבר רץ" (the workflow's concurrency group also queues overlapping runs).
+- Implemented as a "סנכרן עכשיו" link in the site footer; the result page says "האתר יתעדכן בעוד כ-3 דקות" and links back to the page it was pressed on.
+- The web app runs as the person who opens it ("Execute as: user accessing", "Anyone with Google account").
+- Setup steps: `docs/apps-script-setup.md`.
 
 ### R12. "הוסף מתכון" recipe form (no AI)
 - A **Google Form** owned by the owner, for adding a new recipe quickly from a phone:
@@ -105,12 +110,20 @@ Recipe content never fails the build:
   - מצרכים — paragraph, one ingredient per line;
   - אופן ההכנה — paragraph, one step per line;
   - הערות, מאת, מנות, זמן הכנה, זמן בישול — optional;
-  - תמונות — file upload (images only; requires the person to be signed in to Google).
+  - תמונות — file upload (images only; requires the person to be signed in to Google). Apps Script cannot create file-upload questions, so the owner adds this one question by hand;
+  - also: תיקייה (which sub-folder the doc goes to) and "כבר ניסינו את המתכון?" (→ נוסה row).
 - A **Google Apps Script** bound to the form runs on each submission and creates a **Google Doc in the recipes folder in the exact template layout** (details table + מצרכים / אופן ההכנה / הערות headings + photos inserted), named after the recipe. The Doc stays the single source of truth for later edits (R7); the form is only a fast way to create it.
 - The script then triggers the sync (same mechanism as R8), so the recipe appears on the site within a few minutes; otherwise the daily sync picks it up.
 - Website: a "הוסף מתכון" button (header/home) linking to the form.
-- The Apps Script code and form setup steps are committed in the repo (e.g. `apps-script/`) with a step-by-step guide; the owner installs it once.
+- The Apps Script code and form setup steps are committed in the repo (`apps-script/Code.gs`: `createRecipeForm()` run once from the editor builds the form and its submit trigger; `onRecipeSubmit()` handles submissions) with a step-by-step guide (`docs/apps-script-setup.md`, step 4); the owner installs it once.
 - Tests: the Doc produced by the script is converted correctly by the R7 converter (fixture), including Hebrew, multiple photos and empty optional fields.
+
+### R13. Tested badge, star rating, edit link (added 2026-10-30)
+- Every recipe page shows a **"✓ נוסה" / "טרם נוסה"** badge and a **5-star family rating**; cards show the stars and "✓ נוסה". One shared family score per recipe (not per person).
+- Both are stored **in the recipe's Google Doc** (rows **נוסה** and **דירוג** in the details table), so Drive stays the single source of truth; they can also be typed by hand.
+- Buttons on the recipe page ("סמנו כנוסה ✓" / "סמנו כלא נוסה", tapping a star) open the Apps Script web app (`?action=tested|rate`), which runs **as the signed-in family member** — only people the folder is shared with as editors can change anything. It checks the doc is inside "מתכונים לאתר", sets the row (adding it if missing), starts the sync and links back.
+- **"עריכה ב-Google Docs"** button on every recipe page opens its doc, so the family can fix and extend recipes.
+- **"הדפסה"** button opens the print view (R1 print style).
 
 ### R9. "Needs fixing" page
 - An unlisted page (not in navigation, `noindex`) listing every recipe with problems: missing ingredients, missing photo, missing meal or dish type. Each item links to the recipe page and to its **Google Doc** for editing.
@@ -122,7 +135,7 @@ Recipe content never fails the build:
 ### R11. Quality bar
 - Converter tests on sample exported docs: Hebrew text, images, template layout, existing-doc layout, missing sections, messy formatting.
 - Sync tests with a mocked Drive API: new / edited / deleted / unchanged docs; slug stays stable on edit.
-- Unit tests: Hebrew search normalization/prefix matching, random pick, meal builder (course filling, no duplicates, locking, empty courses).
+- Unit tests: Hebrew search normalization/prefix matching, random pick, meal builder (course filling, no duplicates, locking, empty courses), sub-folders/templates/folder hints, נוסה/דירוג parsing.
 - Build passes, no broken links (incl. the `/shteingaus-food-book/` base path), RTL verified on mobile + desktop, accessibility check passes.
 - End-to-end check: add a doc to the Drive folder → press "sync now" → recipe appears on the site.
 
@@ -131,7 +144,42 @@ Recipe content never fails the build:
 2. Recipe page with ingredients section (incl. red missing state), shared recipe index, Hebrew search, meal filters.
 3. Random recipe + meal builder.
 4. Google Drive sync: Google Doc template, converter, daily sync Action, "needs fixing" page, setup guide. Owner does the Google Cloud setup (~15 min) and moves existing docs into the folder.
-5. "Sync now" button (Apps Script), "הוסף מתכון" Google Form + Apps Script (R12), print style.
+5. "Sync now" button (Apps Script), "הוסף מתכון" Google Form + Apps Script (R12), print style. Added along the way: R13 (tested, rating, edit link).
+
+## Status (2026-10-31)
+
+| Item | Status |
+|---|---|
+| Phase 1 — skeleton, RTL layout, deploy | ✅ live |
+| Phase 2 — recipe pages, Hebrew search, meal filters | ✅ live |
+| Phase 3 — random recipe, meal builder | ✅ live |
+| Phase 4 — Drive sync (daily + manual), converter, needs-fixing page, setup guide | ✅ live; Google Cloud + service account set up; sync reads sub-folders |
+| One-time import of the family recipes | ✅ 91 recipes in "מתכונים לאתר" (+ a "תבנית מתכון" template in every folder); sample recipes removed |
+| R13 — tested badge, star rating, edit link | ✅ live; Apps Script web app deployed and tested end to end (5 stars on פלאפל) |
+| R8 — "סנכרן עכשיו" (footer link) | ✅ code live — **needs the updated Apps Script version deployed** (see open items) |
+| R1 — print style + "הדפסה" button | ✅ code live |
+| R12 — "הוסף מתכון" form | 🟡 code ready (`createRecipeForm`, `onRecipeSubmit`); owner still has to run setup; the header button appears once `FORM_URL` is set in `src/lib/config.ts` |
+
+Tests: 120 unit tests passing; build 100 pages, link check 0 problems.
+
+## Open items
+
+Owner (setup):
+1. Paste the latest `apps-script/Code.gs` + `apps-script/appsscript.json` into the script, **Deploy → Manage deployments → New version** (adds the form code and wider scopes; everyone re-approves permissions once).
+2. Run `createRecipeForm` once; add the **תמונות** file-upload question by hand; send the public form link → set `FORM_URL` in `src/lib/config.ts`.
+3. Test the form end to end (submit with a photo → doc appears in the chosen folder → recipe on the site); then add a converter fixture test for a form-created doc (R12 test item).
+
+Content (family, in Google Docs — no code):
+4. 73 recipes have no photo (yellow "צריך לתקן" badge — **intentionally kept** on every such recipe, owner decision 2026-10-31).
+5. "מאפה פילו תרד ופטה" has no recipe text (only a screenshot of a video).
+6. No dessert recipes yet → the meal builder skips the dessert course.
+7. Review the steps Claude completed (highlighted yellow in the docs).
+
+Maintenance / nice to have:
+8. GitHub sometimes leaves a Pages deploy run queued (seen twice); if it recurs, add a watchdog/retry. Workaround: cancel the stuck run, the next one deploys.
+9. The GitHub token in the Apps Script expires (as chosen at creation) — the buttons then fail with "GitHub: 401"; create a new token and update `GITHUB_TOKEN`.
+10. Scheduled workflows are disabled by GitHub after 60 days without repo activity — re-enable under Actions if the daily sync stops.
+11. Ideas not started: filter "רק מתכונים שנוסו", sort by rating, per-person ratings.
 
 ## Defaults (change if wanted)
 - Site title: "ספר המתכונים משפחת שטיינגאוס" (confirmed by owner); warm, homey look with large food photos.
@@ -145,3 +193,8 @@ Recipe content never fails the build:
 - `dishType` is multi-valued.
 - No kosher rules in meal builder.
 - Accepted: one secret (Google service account key) in GitHub Actions.
+- 2026-10-30: originals stay untouched in the wife's folder; Claude did a one-time AI clean-up into a new folder "מתכונים לאתר" (owner request). After that, no AI is involved in adding recipes.
+- 2026-10-30: sync reads sub-folders; folder name is a dish-type hint; "תבנית מתכון" docs are skipped.
+- 2026-10-30: tested + rating are stored in the Google Doc (rows נוסה/דירוג), not in a separate database; changed from the site through an Apps Script web app that runs as the signed-in user. Owner preferred buttons ("as a product") over typing in the doc.
+- 2026-10-30: the Apps Script web app uses wider scopes (Drive, Forms, triggers) once the form code is added; one script project for all family actions.
+- 2026-10-31: "צריך לתקן" badge stays on every recipe missing a photo or other data (owner decision).
