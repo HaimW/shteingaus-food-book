@@ -3,6 +3,7 @@ import '@fontsource-variable/heebo';
 import '../styles/global.css';
 import { MEALS, MEAL_SHORT_LABELS, SITE_TITLE } from '../lib/labels';
 import { mealUrl, withBase } from '../lib/paths';
+import { APPS_SCRIPT_URL, FORM_URL, SITE_URL } from '../lib/config';
 
 interface Props {
   title?: string;
@@ -21,6 +22,9 @@ const nav = [
   { key: 'random', label: 'מתכון אקראי', href: withBase('random/') },
 ];
 const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
+// "סנכרן עכשיו": the Apps Script web app starts the Drive sync and links back
+// (the back link is set to the current page by the script below).
+const syncUrl = APPS_SCRIPT_URL ? `${APPS_SCRIPT_URL}?${new URLSearchParams({ action: 'sync', back: SITE_URL })}` : undefined;
 ---
 
 <!doctype html>
@@ -52,6 +56,13 @@ const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
             }
           </ul>
         </nav>
+        {
+          FORM_URL && (
+            <a class="add-recipe" href={FORM_URL} target="_blank" rel="noopener">
+              + הוסף מתכון<span class="visually-hidden"> (טופס, נפתח בחלון חדש)</span>
+            </a>
+          )
+        }
       </div>
     </header>
     <main id="main" class="container">
@@ -60,7 +71,25 @@ const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
     <footer class="site-footer">
       <div class="container">
         <p>{SITE_TITLE} · באהבה מהמטבח שלנו</p>
+        {
+          syncUrl && (
+            <p class="footer-actions">
+              <a href={syncUrl} data-sync-link>
+                סנכרן עכשיו
+              </a>
+              <span class="footer-hint">מעדכן את האתר מ-Google Drive (כ-3 דקות)</span>
+            </p>
+          )
+        }
       </div>
     </footer>
+    <script>
+      // Come back to the page the sync was started from.
+      for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-sync-link]')) {
+        const url = new URL(a.href);
+        url.searchParams.set('back', location.href.split('#')[0]);
+        a.href = url.href;
+      }
+    </script>
   </body>
 </html>

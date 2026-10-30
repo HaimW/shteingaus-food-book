@@ -134,6 +134,32 @@ h3 {
   text-align: center;
 }
 
+.footer-actions {
+  margin-block: 0.5rem 0;
+}
+.footer-actions a {
+  font-weight: 600;
+}
+.footer-hint {
+  margin-inline-start: 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* "+ הוסף מתכון" in the header */
+.add-recipe {
+  display: inline-block;
+  margin-block-start: 0.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.add-recipe:hover {
+  background: #fbeee4;
+}
+
 /* Chips (meal / dish type labels) */
 .chips {
   display: flex;
@@ -225,4 +251,57 @@ h3 {
 /* `hidden` always wins over component display rules (buttons, flex rows). */
 [hidden] {
   display: none !important;
+}
+
+/* Print: just the recipe — title, photo, details, ingredients, steps, notes. */
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+  .site-header,
+  .site-footer,
+  .skip-link,
+  .back,
+  .random-bar,
+  .recipe-actions,
+  .needs-fixing,
+  .hero-missing,
+  .tested-no,
+  .stars-text,
+  nav,
+  button {
+    display: none !important;
+  }
+  main.container {
+    max-inline-size: none;
+    padding: 0;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  img.hero {
+    max-block-size: 7cm;
+    inline-size: auto;
+    max-inline-size: 100%;
+    box-shadow: none;
+    margin-block: 0.5cm;
+  }
+  .chips .chip,
+  .tested-yes {
+    background: none !important;
+    border: 1px solid #999;
+    color: #000;
+  }
+  h2 {
+    break-after: avoid;
+  }
+  li {
+    break-inside: avoid;
+  }
 }

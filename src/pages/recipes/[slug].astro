@@ -78,22 +78,21 @@ const facts = [
         <p class={tested ? 'tested tested-yes' : 'tested tested-no'}>{tested ? '✓ נוסה' : 'טרם נוסה'}</p>
         <StarRating rating={rating} hrefs={rateUrls} />
       </div>
-      {
-        (docUrl || toggleUrl) && (
-          <div class="recipe-actions">
-            {toggleUrl && (
-              <a class="button" href={toggleUrl}>
-                {tested ? 'סמנו כלא נוסה' : 'סמנו כנוסה ✓'}
-              </a>
-            )}
-            {docUrl && (
-              <a class="button button-secondary" href={docUrl} target="_blank" rel="noopener">
-                עריכה ב-Google Docs<span class="visually-hidden"> (נפתח בחלון חדש)</span>
-              </a>
-            )}
-          </div>
-        )
-      }
+      <div class="recipe-actions">
+        {toggleUrl && (
+          <a class="button" href={toggleUrl}>
+            {tested ? 'סמנו כלא נוסה' : 'סמנו כנוסה ✓'}
+          </a>
+        )}
+        <button type="button" class="button button-secondary" data-print>
+          הדפסה
+        </button>
+        {docUrl && (
+          <a class="button button-secondary" href={docUrl} target="_blank" rel="noopener">
+            עריכה ב-Google Docs<span class="visually-hidden"> (נפתח בחלון חדש)</span>
+          </a>
+        )}
+      </div>
     </header>
 
     {
@@ -195,6 +194,8 @@ const facts = [
 <script>
   import { MEAL_LABELS } from '../../lib/labels';
   import { parseRandomlyOpened, randomSearch } from '../../lib/random';
+
+  document.querySelector('[data-print]')?.addEventListener('click', () => window.print());
 
   const bar = document.querySelector<HTMLElement>('[data-random-bar]');
   const { random, meal } = parseRandomlyOpened(location.search);

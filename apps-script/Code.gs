@@ -11,6 +11,11 @@
  *   ?action=sync&back=<url>
  *       starts the site sync (the "סנכרן עכשיו" button).
  *
+ * "הוסף מתכון" Google Form (build-plan R12):
+ *   run createRecipeForm() once from the editor. It creates the form, connects
+ *   onRecipeSubmit() to it, and logs the form's public link. Each submission becomes
+ *   a Google Doc in the template layout in the chosen folder, then the sync starts.
+ *
  * Script properties (Project settings → Script properties):
  *   GITHUB_TOKEN  fine-grained GitHub token: repo HaimW/shteingaus-food-book only,
  *                 permission "Actions: Read and write". Never put it in the website.
@@ -143,4 +148,129 @@ function page(title, message, back) {
     'h1{font-size:1.6rem}p{font-size:1.1rem}a{display:inline-block;margin-top:1rem;padding:.7rem 1.4rem;border-radius:.6rem;background:#b5512a;color:#fff;text-decoration:none;font-weight:bold}</style>' +
     '</head><body><h1>' + esc(title) + '</h1><p>' + esc(message) + '</p><a href="' + esc(back) + '">חזרה לאתר</a></body></html>';
   return HtmlService.createHtmlOutput(html).setTitle('ספר המתכונים').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// ---------------------------------------------------------------------------
+// "הוסף מתכון" Google Form
+
+var FORM_TITLES = {
+  title: 'שם המתכון',
+  folder: 'תיקייה',
+  meal: 'ארוחה',
+  dish: 'סוג מנה',
+  author: 'מאת',
+  servings: 'מנות',
+  prep: 'זמן הכנה',
+  cook: 'זמן בישול',
+  ingredients: 'מצרכים',
+  steps: 'אופן ההכנה',
+  notes: 'הערות',
+  tested: 'כבר ניסינו את המתכון?',
+  photos: 'תמונות',
+};
+var MAIN_FOLDER_CHOICE = 'ראשית (בלי תת-תיקייה)';
+
+/** Run once from the editor: creates the form and connects onRecipeSubmit to it. */
+function createRecipeForm() {
+  var T = FORM_TITLES;
+  var form = FormApp.create('הוסף מתכון — ספר המתכונים משפחת שטיינגאוס');
+  form
+    .setDescription('ממלאים, שולחים — והמתכון מופיע באתר תוך כמה דקות. אפשר לתקן אחר כך במסמך ה-Google Docs שנוצר.')
+    .setConfirmationMessage('תודה! המתכון יופיע באתר בעוד כ-3 דקות.')
+    .setCollectEmail(false)
+    .setAllowResponseEdits(false);
+
+  form.addTextItem().setTitle(T.title).setRequired(true);
+  var folders = [MAIN_FOLDER_CHOICE];
+  var it = DriveApp.getFolderById(ROOT_FOLDER_ID).getFolders();
+  while (it.hasNext()) folders.push(it.next().getName());
+  form.addListItem().setTitle(T.folder).setChoiceValues(folders).setRequired(true);
+  form.addCheckboxItem().setTitle(T.meal).setChoiceValues(['ארוחת בוקר', 'ארוחת צהריים', 'ארוחת ערב', 'קינוח']);
+  form.addCheckboxItem().setTitle(T.dish).setChoiceValues(['מנה עיקרית', 'תוספת', 'סלט', 'קינוח', 'אחר']);
+  form.addTextItem().setTitle(T.author).setHelpText('ממי המתכון (לא חובה)');
+  form.addTextItem().setTitle(T.servings);
+  form.addTextItem().setTitle(T.prep).setHelpText('למשל "20 דקות"');
+  form.addTextItem().setTitle(T.cook).setHelpText('למשל "45 דקות"');
+  form.addParagraphTextItem().setTitle(T.ingredients).setHelpText('מצרך אחד בכל שורה, למשל "2 כוסות קמח". כותרת משנה בשורה נפרדת, למשל "לרוטב:"');
+  form.addParagraphTextItem().setTitle(T.steps).setHelpText('שלב אחד בכל שורה');
+  form.addParagraphTextItem().setTitle(T.notes).setHelpText('טיפים, החלפות, הגשה (לא חובה)');
+  form.addMultipleChoiceItem().setTitle(T.tested).setChoiceValues(['כן', 'עוד לא']);
+
+  ScriptApp.newTrigger('onRecipeSubmit').forForm(form).onFormSubmit().create();
+  PropertiesService.getScriptProperties().setProperty('FORM_ID', form.getId());
+  Logger.log('Public link (for the website): ' + form.getPublishedUrl());
+  Logger.log('Edit the form (add the photos question): ' + form.getEditUrl());
+}
+
+/** Form trigger: one submission -> one recipe doc in the template layout. */
+function onRecipeSubmit(e) {
+  var T = FORM_TITLES;
+  var a = {};
+  e.response.getItemResponses().forEach(function (r) {
+    a[r.getItem().getTitle()] = r.getResponse();
+  });
+  var list = function (v) { return Array.isArray(v) ? v.join(', ') : v ? String(v) : ''; };
+  var lines = function (v) {
+    return String(v || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(String);
+  };
+
+  var title = String(a[T.title] || 'מתכון חדש').trim();
+  var doc = DocumentApp.create(title);
+  var body = doc.getBody();
+  var rtl = function (el) { el.setLeftToRight(false); return el; };
+
+  var rows = [
+    [T.meal, list(a[T.meal])],
+    [T.dish, list(a[T.dish])],
+    [T.author, list(a[T.author])],
+    [T.servings, list(a[T.servings])],
+    [T.prep, list(a[T.prep])],
+    [T.cook, list(a[T.cook])],
+  ];
+  if (a[T.tested]) rows.push([TESTED_LABEL, a[T.tested] === 'כן' ? 'כן' : 'לא']);
+  var table = body.appendTable(rows);
+  for (var r = 0; r < table.getNumRows(); r++) table.getRow(r).getCell(0).editAsText().setBold(true);
+
+  // Photos (file-upload question): the first one becomes the main photo.
+  var photoIds = a[T.photos] || [];
+  (Array.isArray(photoIds) ? photoIds : [photoIds]).forEach(function (id) {
+    try {
+      var img = body.appendImage(DriveApp.getFileById(id).getBlob());
+      var w = img.getWidth(), h = img.getHeight();
+      if (w > 480) img.setWidth(480).setHeight(Math.round((h * 480) / w));
+    } catch (err) {
+      rtl(body.appendParagraph('(תמונה לא נטענה: ' + err + ')'));
+    }
+  });
+
+  rtl(body.appendParagraph(T.ingredients).setHeading(DocumentApp.ParagraphHeading.HEADING2));
+  lines(a[T.ingredients]).forEach(function (l) {
+    rtl(body.appendListItem(l.replace(/^[-*•·]\s*/, '')).setGlyphType(DocumentApp.GlyphType.BULLET));
+  });
+  rtl(body.appendParagraph(T.steps).setHeading(DocumentApp.ParagraphHeading.HEADING2));
+  lines(a[T.steps]).forEach(function (l) {
+    rtl(body.appendListItem(l.replace(/^\d+\s*[.)\-]\s*/, '')).setGlyphType(DocumentApp.GlyphType.NUMBER));
+  });
+  var notes = lines(a[T.notes]);
+  if (notes.length) {
+    rtl(body.appendParagraph(T.notes).setHeading(DocumentApp.ParagraphHeading.HEADING2));
+    notes.forEach(function (l) { rtl(body.appendParagraph(l)); });
+  }
+  doc.saveAndClose();
+
+  DriveApp.getFileById(doc.getId()).moveTo(targetFolder(a[T.folder]));
+  try {
+    startSync();
+  } catch (err) {
+    console.error('sync not started: ' + err); // the daily sync will pick it up
+  }
+}
+
+function targetFolder(name) {
+  var root = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  if (name && name !== MAIN_FOLDER_CHOICE) {
+    var it = root.getFoldersByName(name);
+    if (it.hasNext()) return it.next();
+  }
+  return root;
 }
