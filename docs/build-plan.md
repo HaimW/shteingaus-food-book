@@ -14,7 +14,7 @@ Recipes live in a shared Google Drive folder of Google Docs. The website picks t
 ### R1. Site
 - Astro static site, `lang="he"` `dir="rtl"`, Hebrew web font (e.g. Heebo/Assistant), mobile-first.
 - Pages: home (recipe card grid), recipe page, meal-category pages, search, random recipe, meal builder, "needs fixing" page.
-- "סנכרן עכשיו" (sync now) button (R8).
+- "סנכרן עכשיו" (sync now) button (R8) and "הוסף מתכון" (add recipe) button opening the recipe form (R12).
 - Print-friendly recipe page (one clean page, no nav).
 - English URL slugs, e.g. `/recipes/grandma-cheesecake` (from the doc's `slug` field, else transliterated from the title; stable once assigned).
 - Repo and site are public.
@@ -97,6 +97,21 @@ Recipe content never fails the build:
 - Pressing it is harmless (sync is idempotent), so it is open to any visitor; it can be restricted to signed-in Google accounts later.
 - Setup steps included in `docs/google-drive-setup.md`.
 
+### R12. "הוסף מתכון" recipe form (no AI)
+- A **Google Form** owned by the owner, for adding a new recipe quickly from a phone:
+  - שם המתכון (required);
+  - ארוחה — checkboxes: ארוחת בוקר / צהריים / ערב / קינוח;
+  - סוג מנה — checkboxes: מנה עיקרית / תוספת / סלט / קינוח / אחר (fixed choices, so categories can't be mistyped);
+  - מצרכים — paragraph, one ingredient per line;
+  - אופן ההכנה — paragraph, one step per line;
+  - הערות, מאת, מנות, זמן הכנה, זמן בישול — optional;
+  - תמונות — file upload (images only; requires the person to be signed in to Google).
+- A **Google Apps Script** bound to the form runs on each submission and creates a **Google Doc in the recipes folder in the exact template layout** (details table + מצרכים / אופן ההכנה / הערות headings + photos inserted), named after the recipe. The Doc stays the single source of truth for later edits (R7); the form is only a fast way to create it.
+- The script then triggers the sync (same mechanism as R8), so the recipe appears on the site within a few minutes; otherwise the daily sync picks it up.
+- Website: a "הוסף מתכון" button (header/home) linking to the form.
+- The Apps Script code and form setup steps are committed in the repo (e.g. `apps-script/`) with a step-by-step guide; the owner installs it once.
+- Tests: the Doc produced by the script is converted correctly by the R7 converter (fixture), including Hebrew, multiple photos and empty optional fields.
+
 ### R9. "Needs fixing" page
 - An unlisted page (not in navigation, `noindex`) listing every recipe with problems: missing ingredients, missing photo, missing meal or dish type. Each item links to the recipe page and to its **Google Doc** for editing.
 
@@ -116,7 +131,7 @@ Recipe content never fails the build:
 2. Recipe page with ingredients section (incl. red missing state), shared recipe index, Hebrew search, meal filters.
 3. Random recipe + meal builder.
 4. Google Drive sync: Google Doc template, converter, daily sync Action, "needs fixing" page, setup guide. Owner does the Google Cloud setup (~15 min) and moves existing docs into the folder.
-5. "Sync now" button (Apps Script) + print style.
+5. "Sync now" button (Apps Script), "הוסף מתכון" Google Form + Apps Script (R12), print style.
 
 ## Defaults (change if wanted)
 - Site title: "ספר המתכונים משפחת שטיינגאוס" (confirmed by owner); warm, homey look with large food photos.
@@ -124,6 +139,7 @@ Recipe content never fails the build:
 ## Decisions log
 - Google Drive folder is the single source of truth; `/admin` editor (Sveltia CMS) and `.docx` upload pipeline dropped — avoids two editing places overwriting each other, and family needs no GitHub accounts.
 - Sync daily + on-demand button via Apps Script (keeps the GitHub token out of the public site).
+- Added R12: Google Form → Apps Script creates a template-layout Google Doc in the folder → sync. Easiest no-AI way to add recipes; fixed category choices; Docs remain the source of truth for edits.
 - Sync never fails on recipe content; problems surface as red sections and on the "needs fixing" page.
 - Pagefind replaced by custom search (Hebrew attached prefixes; one shared index).
 - `dishType` is multi-valued.
