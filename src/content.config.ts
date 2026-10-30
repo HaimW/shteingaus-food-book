@@ -13,7 +13,9 @@ const text = z.union([z.string(), z.number()]).transform((v) => String(v));
 // them still publishes (R2, R3). meal / dishType / image are free strings so
 // unknown categories or a missing photo never fail the build; src/lib/recipe.ts
 // validates them and turns problems into on-page issues. driveId /
-// driveModified are written by the Drive sync (phase 4); optional until then.
+// driveModified are written by the Drive sync (scripts/drive-sync), which stores
+// each synced recipe as <slug>/index.md next to its photos; hand-written
+// samples have neither field.
 const recipes = defineCollection({
   // The glob loader uses the `slug` frontmatter field as the entry id when
   // present, otherwise the file name. The id is the URL slug.

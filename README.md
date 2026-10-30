@@ -25,17 +25,23 @@ Other commands:
 | `npm run preview` | Serve the built `dist/` locally (also under `/shteingaus-food-book/`) |
 | `npm run check` | Type-check Astro/TypeScript files and validate the content schema |
 | `npm run check:links` | After a build: verify every page has `lang="he" dir="rtl"` and every internal link/asset resolves under the base path |
+| `npm test` | Unit tests (search, meal builder, Drive converter and sync) |
+| `npm run sync` | Pull recipes from the Google Drive folder (needs `GOOGLE_SERVICE_ACCOUNT_KEY` + `DRIVE_FOLDER_ID`; see [`docs/google-drive-setup.md`](docs/google-drive-setup.md)). Try it without Google: `npm run sync -- --mock-drive tests/fixtures/drive` (don't commit the result) |
+| `npm run template` | Regenerate `docs/recipe-template.docx` |
 
 ## Project layout
 
 ```
 src/content.config.ts      recipe schema (frontmatter fields, see build plan R2)
-src/content/recipes/       one Markdown file per recipe
-src/content/recipes/images/ recipe photos
-src/pages/                 home page, recipe pages (/recipes/<slug>/), 404
+src/content/recipes/       hand-written sample recipes (<slug>.md) + images/
+src/content/recipes/<slug>/ recipes synced from Google Drive: index.md + photo-N.webp (generated — edit the Google Doc)
+src/pages/                 home, recipe pages (/recipes/<slug>/), meal pages, random, meal builder,
+                           /needs-fixing/ (unlisted, noindex), 404
+scripts/drive-sync/        Google Doc -> Markdown converter, Drive client, `npm run sync`
 src/layouts/, src/components/, src/styles/
 scripts/check-links.mjs    post-build link / base-path / RTL check
-.github/workflows/deploy.yml  build + deploy to GitHub Pages on push to main
+.github/workflows/deploy.yml  build + deploy to GitHub Pages on push to main (also called by sync.yml)
+.github/workflows/sync.yml    daily + manual Drive sync -> commit to main -> deploy
 ```
 
 ## Adding a recipe by hand
@@ -61,13 +67,13 @@ image: ./images/english-url-name.jpg
 ## הערות
 ```
 
-`meal`, `dishType` and `ingredients` may be left out — the recipe still publishes; a recipe without ingredients shows a red "מצרכים חסרים" section. (From phase 4 on, recipes come from the shared Google Drive folder instead.)
+`meal`, `dishType` and `ingredients` may be left out — the recipe still publishes; a recipe without ingredients shows a red "מצרכים חסרים" section. Family recipes come from the shared Google Drive folder instead — see [`docs/google-drive-setup.md`](docs/google-drive-setup.md) (setup, the recipe template, and the "needs fixing" page).
 
 In links and asset paths, always use the `withBase()` / `recipeUrl()` helpers from `src/lib/paths.ts` so they work under the base path.
 
 ## Deployment
 
-Every push to `main` builds and deploys via GitHub Actions. One-time setup in the GitHub repo: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
+Every push to `main` builds and deploys via GitHub Actions; so does every Drive sync that changed something. One-time setup in the GitHub repo: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
 
 ## Sample content
 

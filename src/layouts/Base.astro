@@ -9,9 +9,11 @@ interface Props {
   description?: string;
   /** Which nav item is the current page: 'home', a meal key, 'random' or 'meal-builder'. */
   current?: string;
+  /** Keep the page out of search engines (e.g. the unlisted "needs fixing" page). */
+  noindex?: boolean;
 }
 
-const { title, description = 'מתכונים משפחתיים של משפחת שטיינגאוס', current } = Astro.props;
+const { title, description = 'מתכונים משפחתיים של משפחת שטיינגאוס', current, noindex = false } = Astro.props;
 const nav = [
   { key: 'home', label: 'כל המתכונים', href: withBase('/') },
   ...MEALS.map((m) => ({ key: m, label: MEAL_SHORT_LABELS[m], href: mealUrl(m) })),
@@ -27,6 +29,7 @@ const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta name="theme-color" content="#c0582f" />
     <link rel="icon" type="image/svg+xml" href={withBase('favicon.svg')} />
     <title>{pageTitle}</title>

@@ -1,0 +1,124 @@
+name: Sync recipes from Google Drive
+
+# build-plan R7/R10: daily, and on demand (the phase-5 "sync now" button triggers
+# workflow_dispatch). Converts new/changed Google Docs, removes deleted ones,
+# commits to main only when something changed, then builds + deploys through
+# deploy.yml (commits made with the Actions token don't trigger push workflows).
+on:
+  schedule:
+    - cron: '17 2 * * *' # daily, ~04:17-05:17 Israel time
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Re-convert every doc (only needed after a converter change)
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One sync at a time; a press while a sync runs waits for it instead of racing it.
+# Different group from deploy.yml ("pages") so calling it cannot deadlock.
+concurrency:
+  group: drive-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Only ever sync into main (a manual run from another branch does nothing).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # commit synced recipes to main
+    outputs:
+      changed: ${{ steps.commit.outputs.pushed }}
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          HAS_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY != '' }}
+          FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+        run: |
+          if [ "$HAS_KEY" != "true" ] || [ -z "$FOLDER_ID" ]; then
+            echo "::notice title=Drive sync not configured::Skipping. Add the GOOGLE_SERVICE_ACCOUNT_KEY secret and the DRIVE_FOLDER_ID variable (Settings > Secrets and variables > Actions). See docs/google-drive-setup.md."
+            echo "### Drive sync skipped: not configured yet (see docs/google-drive-setup.md)" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          # Don't leave the write token in .git/config while dependencies run;
+          # only the commit step below gets it.
+          persist-credentials: false
+
+      - name: Setup Node
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: npm ci
+
+      # Fails only on real errors (bad credentials, folder not shared, Drive API down);
+      # then nothing is committed and the live site stays as it was.
+      - name: Sync from Google Drive
+        id: sync
+        if: steps.config.outputs.configured == 'true'
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          SYNC_FORCE: ${{ inputs.force && '1' || '' }}
+        run: npm run sync
+
+      # Never commit something that would break the site build.
+      - name: Check the site still builds
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          npm run build
+          npm run check:links
+
+      - name: Commit and push to main
+        id: commit
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          COUNTS: ${{ steps.sync.outputs.counts }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A src/content/recipes
+          if git diff --cached --quiet; then
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Sync recipes from Google Drive ($COUNTS)"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "main moved; rebasing (attempt $attempt)"
+            git pull --rebase origin main
+          done
+          echo "::error::Could not push the synced recipes to main"
+          exit 1
+
+  deploy:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: main

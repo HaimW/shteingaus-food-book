@@ -1,0 +1,95 @@
+---
+// R9: unlisted "needs fixing" page — not in the navigation, noindex. Lists every
+// recipe with problems (missing ingredients / photo / meal / dish type, unknown
+// values), linking to the recipe page and, for Drive recipes, to the Google Doc.
+import Base from '../layouts/Base.astro';
+import { recipeUrl } from '../lib/paths';
+import { recipeView } from '../lib/recipe';
+import { getSortedRecipes } from '../lib/recipe-index';
+
+const recipes = (await getSortedRecipes())
+  .map((recipe) => ({ recipe, view: recipeView(recipe) }))
+  .filter(({ view }) => view.issues.length > 0);
+---
+
+<Base title="צריך לתקן" description="מתכונים שחסרים בהם פרטים" noindex>
+  <h1>מתכונים שצריך לתקן</h1>
+  {
+    recipes.length === 0 ? (
+      <p class="all-good">כל המתכונים תקינים — אין מה לתקן.</p>
+    ) : (
+      <>
+        <p class="intro">
+          {recipes.length === 1 ? 'מתכון אחד צריך תיקון.' : `${recipes.length} מתכונים צריכים תיקון.`} מתקנים במסמך
+          ה-Google Docs של המתכון, והאתר יתעדכן בסנכרון הבא.
+        </p>
+        <ul class="fix-list">
+          {recipes.map(({ recipe, view }) => (
+            <li class="fix-item">
+              <h2>
+                <a href={recipeUrl(recipe.id)}>{recipe.data.title}</a>
+              </h2>
+              <ul class="issues">
+                {view.issues.map((issue) => (
+                  <li>{issue}</li>
+                ))}
+              </ul>
+              <p class="actions">
+                <a href={recipeUrl(recipe.id)}>לדף המתכון</a>
+                {view.docUrl ? (
+                  <a href={view.docUrl} target="_blank" rel="noopener">
+                    לעריכה ב-Google Docs<span class="visually-hidden"> (נפתח בחלון חדש)</span>
+                  </a>
+                ) : (
+                  <span class="no-doc">מתכון לדוגמה — אין מסמך Google Docs</span>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</Base>
+
+<style>
+  .intro {
+    color: var(--muted);
+  }
+  .fix-list {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+  }
+  .fix-item {
+    background: #fff4d6;
+    border: 2px solid #c98a00;
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+  }
+  .fix-item h2 {
+    margin-block: 0 0.25rem;
+    font-size: 1.2rem;
+  }
+  .issues {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+    color: #6b4a00;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin-block: 0.6rem 0;
+    font-weight: 600;
+  }
+  .no-doc {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .all-good {
+    font-weight: 600;
+  }
+</style>

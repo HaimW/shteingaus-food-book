@@ -4,11 +4,21 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Called by sync.yml after it commits synced recipes (commits made with the
+  # Actions token do not trigger `push` workflows).
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build (sync.yml passes "main" so the newest content is always deployed)
+        type: string
+        default: ''
 
 # Least privilege: nothing by default; each job requests what it needs.
 permissions: {}
 
-# One deploy at a time; don't cancel a deploy that is already running.
+# One deploy at a time; don't cancel a deploy that is already running. The group
+# name is a literal (not github.workflow) so it is the same whether this runs on
+# push or is called from sync.yml, and differs from sync.yml's own group.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -21,6 +31,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Empty on push / manual runs (= the triggering commit); "main" when called by sync.yml.
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
