@@ -1,0 +1,511 @@
+---
+// "בנה לי ארוחה" meal builder (build-plan R6). Runs in the browser from the
+// shared recipe index; pick logic lives in src/lib/meal-builder.ts.
+// Shareable state in the URL: ?c=main,side,salad&meal=dinner&main=<slug>&...&lock=main
+import Base from '../layouts/Base.astro';
+import { INDEX_PATH } from '../lib/index-schema';
+import { MEAL_LABELS } from '../lib/labels';
+import { withBase } from '../lib/paths';
+import { BUILDER_MEALS, COURSES, COURSE_LABELS, COURSE_LABELS_DEFINITE, DEFAULT_COURSES, MIN_COURSES } from '../lib/meal-builder';
+---
+
+<Base title="בנה לי ארוחה" current="meal-builder" description="בונים ארוחה שלמה ממתכוני המשפחה בלחיצה אחת">
+  <section class="builder" data-index={withBase(INDEX_PATH)} aria-labelledby="builder-heading">
+    <h1 id="builder-heading">בנה לי ארוחה</h1>
+    <p class="intro">לא צריך להחליט: בוחרים מנות, ואנחנו מרכיבים ארוחה. אפשר להחליף מנה, לנעול מנה שאהבתם ולשתף.</p>
+
+    <form class="controls" data-controls>
+      <fieldset class="options">
+        <legend>אילו מנות?</legend>
+        <div class="option-row">
+          {
+            COURSES.map((c) => (
+              <label class="option">
+                <input type="checkbox" name="course" value={c} checked={DEFAULT_COURSES.includes(c)} aria-describedby="courses-hint" />
+                <span>{COURSE_LABELS[c]}</span>
+              </label>
+            ))
+          }
+        </div>
+        <p id="courses-hint" class="hint">לפחות {MIN_COURSES} מנות.</p>
+      </fieldset>
+
+      <fieldset class="options">
+        <legend>לאיזו ארוחה?</legend>
+        <div class="option-row">
+          <label class="option">
+            <input type="radio" name="meal" value="" checked />
+            <span>כל ארוחה</span>
+          </label>
+          {
+            BUILDER_MEALS.map((m) => (
+              <label class="option">
+                <input type="radio" name="meal" value={m} />
+                <span>{MEAL_LABELS[m]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+
+      <div class="main-actions">
+        <button type="button" class="button" data-reroll-all disabled>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>
+          ארוחה אחרת
+        </button>
+        <button type="button" class="button button-secondary" data-share disabled>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
+          שיתוף הארוחה
+        </button>
+      </div>
+    </form>
+
+    <p id="builder-status" class="status" role="status" aria-live="polite" aria-atomic="true" data-status>מרכיבים ארוחה…</p>
+    <noscript><p class="status">כדי לבנות ארוחה צריך להפעיל JavaScript בדפדפן.</p></noscript>
+
+    <h2 class="visually-hidden">הארוחה</h2>
+    <ol class="courses" role="list" data-courses>
+      {
+        COURSES.map((c) => (
+          <li class="course" data-course={c} hidden>
+            <h3 class="course-name">{COURSE_LABELS[c]}</h3>
+            <a class="course-card" data-card hidden>
+              <div class="course-media">
+                <img data-img alt="" width="400" height="300" loading="lazy" decoding="async" hidden />
+                <div class="course-placeholder" data-placeholder aria-hidden="true">
+                  <svg viewBox="0 0 64 64" width="80" height="80">
+                    <ellipse cx="32" cy="40" rx="26" ry="11" fill="#e8d3b8" />
+                    <path d="M8 38h48a24 15 0 0 1-48 0z" fill="#c0582f" />
+                    <path d="M22 26c0-5 4-5 4-10M32 26c0-5 4-5 4-10M42 26c0-5 4-5 4-10" stroke="#c0582f" stroke-width="3" fill="none" stroke-linecap="round" />
+                  </svg>
+                </div>
+              </div>
+              <div class="course-body">
+                <span class="course-title" data-title></span>
+                <span class="course-author" data-author></span>
+                <span class="course-fix" data-fix></span>
+              </div>
+            </a>
+            <p class="course-empty" data-empty hidden></p>
+            <div class="course-actions" data-actions hidden>
+              <button type="button" class="button button-secondary" data-reroll aria-label={`החלף את ${COURSE_LABELS_DEFINITE[c]}`}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>
+                החלף
+              </button>
+              <button type="button" class="button button-secondary lock" data-lock aria-pressed="false" aria-label={`נעל את ${COURSE_LABELS_DEFINITE[c]}`}>
+                <svg aria-hidden="true" class="icon-open" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path></svg>
+                <svg aria-hidden="true" class="icon-closed" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                <span class="lock-text">נעל</span>
+              </button>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</Base>
+
+<script>
+  import type { IndexEntry } from '../lib/index-schema';
+  import { loadIndex } from '../lib/load-index';
+  import {
+    COURSES,
+    MIN_COURSES,
+    announce,
+    emptyMessage,
+    fillMeal,
+    isBuilderMeal,
+    isCourse,
+    parsePlan,
+    planToSearch,
+    rerollAll,
+    rerollCourse,
+    setCourse,
+    toggleLock,
+    type Course,
+    type FillResult,
+    type MealPlan,
+  } from '../lib/meal-builder';
+
+  const root = document.querySelector<HTMLElement>('.builder');
+  if (root) init(root);
+
+  async function init(root: HTMLElement) {
+    const form = root.querySelector<HTMLFormElement>('[data-controls]')!;
+    const courseBoxes = [...form.querySelectorAll<HTMLInputElement>('input[name="course"]')];
+    const mealRadios = [...form.querySelectorAll<HTMLInputElement>('input[name="meal"]')];
+    const rerollAllBtn = form.querySelector<HTMLButtonElement>('[data-reroll-all]')!;
+    const shareBtn = form.querySelector<HTMLButtonElement>('[data-share]')!;
+    const status = root.querySelector<HTMLElement>('[data-status]')!;
+    const items = new Map(
+      [...root.querySelectorAll<HTMLElement>('[data-course]')].map((li) => [li.dataset.course as Course, li]),
+    );
+
+    let entries: IndexEntry[];
+    try {
+      entries = await loadIndex(root.dataset.index!);
+    } catch {
+      status.textContent = 'לא הצלחנו לטעון את המתכונים כרגע. נסו לרענן את הדף.';
+      return;
+    }
+    const bySlug = new Map(entries.map((e) => [e.slug, e]));
+
+    // Clear first so an identical message is announced again.
+    let sayTimer: number | undefined;
+    const say = (text: string) => {
+      clearTimeout(sayTimer);
+      status.textContent = '';
+      sayTimer = window.setTimeout(() => (status.textContent = text), 60);
+    };
+
+    let result: FillResult = fillMeal(entries, parsePlan(location.search));
+    let plan: MealPlan = result.plan;
+
+    const render = () => {
+      for (const box of courseBoxes) {
+        box.checked = plan.courses.includes(box.value as Course);
+        // Keep at least MIN_COURSES: the last checked ones cannot be unchecked.
+        box.disabled = box.checked && plan.courses.length <= MIN_COURSES;
+      }
+      for (const r of mealRadios) r.checked = r.value === (plan.meal ?? '');
+
+      for (const c of COURSES) {
+        const li = items.get(c)!;
+        li.hidden = !plan.courses.includes(c);
+        if (li.hidden) continue;
+        const entry = plan.picks[c] ? bySlug.get(plan.picks[c]!) : undefined;
+        const card = li.querySelector<HTMLAnchorElement>('[data-card]')!;
+        const emptyEl = li.querySelector<HTMLElement>('[data-empty]')!;
+        const actions = li.querySelector<HTMLElement>('[data-actions]')!;
+        card.hidden = !entry;
+        actions.hidden = !entry;
+        emptyEl.hidden = !!entry;
+        li.classList.toggle('is-empty', !entry);
+        const locked = !!entry && plan.locked.includes(c);
+        li.classList.toggle('is-locked', locked);
+        if (!entry) {
+          emptyEl.textContent = emptyMessage(entries, plan, c);
+          continue;
+        }
+        card.href = entry.url;
+        card.querySelector('[data-title]')!.textContent = entry.title;
+        card.querySelector('[data-author]')!.textContent = entry.author ? `מאת ${entry.author}` : '';
+        card.querySelector('[data-fix]')!.textContent = entry.issues > 0 ? `צריך לתקן (${entry.issues})` : '';
+        const img = card.querySelector<HTMLImageElement>('[data-img]')!;
+        const placeholder = card.querySelector<HTMLElement>('[data-placeholder]')!;
+        if (entry.image) {
+          if (img.getAttribute('src') !== entry.image) img.src = entry.image;
+          img.hidden = false;
+          placeholder.hidden = true;
+        } else {
+          img.removeAttribute('src');
+          img.hidden = true;
+          placeholder.hidden = false;
+        }
+        const lockBtn = li.querySelector<HTMLButtonElement>('[data-lock]')!;
+        lockBtn.setAttribute('aria-pressed', String(locked));
+        lockBtn.querySelector('.lock-text')!.textContent = locked ? 'נעול' : 'נעל';
+        li.querySelector<HTMLButtonElement>('[data-reroll]')!.disabled = locked;
+      }
+
+      const unlocked = plan.courses.some((c) => !plan.locked.includes(c));
+      rerollAllBtn.disabled = !unlocked;
+      shareBtn.disabled = false;
+      history.replaceState(history.state, '', `${location.pathname}${planToSearch(plan)}${location.hash}`);
+    };
+
+    const update = (next: FillResult, scope: 'meal' | Course = 'meal') => {
+      result = next;
+      plan = next.plan;
+      render();
+      say(announce(entries, next, scope));
+    };
+
+    update(result);
+
+    rerollAllBtn.addEventListener('click', () => update(rerollAll(entries, plan)));
+
+    for (const box of courseBoxes) {
+      box.addEventListener('change', () => {
+        const c = box.value;
+        if (!isCourse(c)) return;
+        update(fillMeal(entries, setCourse(plan, c, box.checked)));
+      });
+    }
+
+    for (const r of mealRadios) {
+      r.addEventListener('change', () => {
+        if (!r.checked) return;
+        const meal = isBuilderMeal(r.value) ? r.value : null;
+        update(rerollAll(entries, { ...plan, meal }));
+      });
+    }
+
+    for (const [c, li] of items) {
+      li.querySelector('[data-reroll]')!.addEventListener('click', () => update(rerollCourse(entries, plan, c), c));
+      li.querySelector('[data-lock]')!.addEventListener('click', () => {
+        plan = toggleLock(plan, c);
+        result = { ...result, plan };
+        render();
+        say(plan.locked.includes(c) ? 'המנה ננעלה ולא תתחלף.' : 'המנה שוחררה.');
+      });
+    }
+
+    shareBtn.addEventListener('click', async () => {
+      const url = location.href;
+      try {
+        if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+          await navigator.share({ title: document.title, url });
+          return;
+        }
+        await navigator.clipboard.writeText(url);
+        say('הקישור לארוחה הועתק. אפשר להדביק ולשלוח.');
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return; // share sheet closed
+        say(`אפשר להעתיק את הקישור משורת הכתובת: ${url}`);
+      }
+    });
+
+    form.addEventListener('submit', (e) => e.preventDefault());
+  }
+</script>
+
+<style>
+  .builder h1 {
+    margin-block: 0 0.25rem;
+    font-size: 1.75rem;
+  }
+  .intro {
+    margin-block: 0 1.25rem;
+    color: var(--muted);
+  }
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 0.85rem;
+  }
+  .options {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-inline-size: 0;
+  }
+  .options legend {
+    padding: 0;
+    font-weight: 700;
+    margin-block-end: 0.35rem;
+  }
+  .option-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .option {
+    position: relative;
+    cursor: pointer;
+  }
+  /* Visually hidden but focusable input; the chip shows state and focus. */
+  .option input {
+    position: absolute;
+    opacity: 0;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: 0;
+  }
+  .option span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-block-size: 2.75rem;
+    padding: 0.3rem 0.95rem;
+    border-radius: 999px;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .option input[type='checkbox'] + span::before {
+    content: '';
+    inline-size: 0.9rem;
+    block-size: 0.9rem;
+    border: 2px solid currentColor;
+    border-radius: 0.25rem;
+  }
+  .option input[type='checkbox']:checked + span::before {
+    background: #fff;
+    border-color: #fff;
+    /* check mark */
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  }
+  .option input:checked + span {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+  .option input:disabled + span {
+    cursor: not-allowed;
+    opacity: 0.85;
+  }
+  .option input:focus-visible + span {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .hint {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .main-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .main-actions .button {
+    flex: 1 1 10rem;
+  }
+  .status {
+    margin: 0.85rem 0 1rem;
+    color: var(--muted);
+    min-block-size: 1.65em;
+  }
+  .courses {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 1fr;
+  }
+  .course {
+    background: var(--surface);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .course.is-locked {
+    border-color: var(--accent);
+  }
+  .course.is-empty {
+    box-shadow: none;
+    border: 2px dashed var(--border);
+  }
+  .course-name {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--accent-dark);
+  }
+  .course-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: #fff;
+  }
+  .course-card:hover .course-title {
+    text-decoration: underline;
+  }
+  .course-media {
+    aspect-ratio: 4 / 3;
+    background: #f3e2cd;
+  }
+  .course-media img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+  .course-placeholder {
+    display: grid;
+    place-items: center;
+    block-size: 100%;
+  }
+  .course-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.6rem 0.75rem 0.75rem;
+  }
+  .course-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .course-author {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .course-author:empty,
+  .course-fix:empty {
+    display: none;
+  }
+  .course-fix {
+    align-self: flex-start;
+    padding: 0.1rem 0.6rem;
+    border-radius: 999px;
+    background: #fff4d6;
+    border: 1px solid #c98a00;
+    color: #6b4a00;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .course-empty {
+    margin: 0;
+    color: var(--muted);
+  }
+  .course-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-block-start: auto;
+  }
+  .course-actions .button {
+    flex: 1;
+    padding-inline: 0.6rem;
+  }
+  .lock .icon-closed,
+  .lock[aria-pressed='true'] .icon-open {
+    display: none;
+  }
+  .lock[aria-pressed='true'] .icon-closed {
+    display: inline;
+  }
+  .lock[aria-pressed='true'] {
+    background: var(--accent);
+    color: #fff;
+  }
+  .lock[aria-pressed='true']:hover {
+    background: var(--accent-dark);
+    color: #fff;
+  }
+  @media (min-width: 36rem) {
+    .courses {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 60rem) {
+    .builder h1 {
+      font-size: 2.25rem;
+    }
+    .controls {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+    .main-actions {
+      grid-column: 1 / -1;
+    }
+    .main-actions .button {
+      flex: 0 0 auto;
+    }
+    .courses {
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    }
+  }
+</style>

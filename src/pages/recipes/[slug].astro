@@ -32,6 +32,12 @@ const facts = [
 <Base title={title} description={ingredients.length > 0 ? `${title}: ${ingredients.slice(0, 5).join(', ')}` : title}>
   <p class="back"><a href={withBase('/')}><span aria-hidden="true">→</span> לכל המתכונים</a></p>
 
+  <!-- R5: shown only when the page was opened by "מתכון אקראי" (?random=1[&meal=..]). -->
+  <div class="random-bar" data-random-bar data-random-base={withBase('random/')} data-slug={recipe.id} hidden>
+    <p>בחרנו בשבילך מתכון אקראי<span data-random-meal></span>.</p>
+    <a class="button" href={withBase('random/')} data-random-again>עוד מתכון אקראי</a>
+  </div>
+
   <article class="recipe">
     <header class="recipe-header">
       <h1>{title}</h1>
@@ -143,7 +149,37 @@ const facts = [
   </article>
 </Base>
 
+<script>
+  import { MEAL_LABELS } from '../../lib/labels';
+  import { parseRandomlyOpened, randomSearch } from '../../lib/random';
+
+  const bar = document.querySelector<HTMLElement>('[data-random-bar]');
+  const { random, meal } = parseRandomlyOpened(location.search);
+  if (bar && random) {
+    bar.querySelector('[data-random-meal]')!.textContent = meal ? ` מתוך ${MEAL_LABELS[meal]}` : '';
+    bar.querySelector<HTMLAnchorElement>('[data-random-again]')!.href =
+      `${bar.dataset.randomBase}${randomSearch({ meal, not: bar.dataset.slug })}`;
+    bar.hidden = false;
+  }
+</script>
+
 <style>
+  .random-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-block-end: 1rem;
+    padding: 0.75rem 1rem;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .random-bar p {
+    margin: 0;
+    font-weight: 600;
+  }
   .back {
     margin-block: 0 1rem;
   }

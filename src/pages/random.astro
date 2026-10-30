@@ -1,0 +1,67 @@
+---
+// "מתכון אקראי" (build-plan R5): /random/?meal=<meal>&not=<slug>
+// Picks a random recipe from the shared index (within the meal filter, avoiding
+// `not` when possible) and opens it with location.replace(), so Back returns to
+// where the user came from. The recipe page then offers "עוד מתכון אקראי".
+import Base from '../layouts/Base.astro';
+import { INDEX_PATH } from '../lib/index-schema';
+import { withBase } from '../lib/paths';
+---
+
+<Base title="מתכון אקראי" current="random" description="מתכון אקראי מספר המתכונים של משפחת שטיינגאוס">
+  <section class="random-page" data-index={withBase(INDEX_PATH)}>
+    <h1>מתכון אקראי</h1>
+    <p id="random-status" role="status" aria-live="polite" data-status>בוחרים בשבילך מתכון…</p>
+    <noscript>
+      <p>כדי לבחור מתכון אקראי צריך להפעיל JavaScript בדפדפן.</p>
+    </noscript>
+    <div class="random-actions" data-actions hidden>
+      <a class="button" href={withBase('random/')} data-any>מתכון אקראי מכל המתכונים</a>
+      <a class="button button-secondary" href={withBase('/')}>לכל המתכונים</a>
+    </div>
+    <p><a href={withBase('/')} data-home-link>לכל המתכונים</a></p>
+  </section>
+</Base>
+
+<script>
+  import { MEAL_LABELS } from '../lib/labels';
+  import { loadIndex } from '../lib/load-index';
+  import { parseRandomParams, pickRandom, randomlyOpenedSearch } from '../lib/random';
+
+  const root = document.querySelector<HTMLElement>('.random-page');
+  if (root) run(root);
+
+  async function run(root: HTMLElement) {
+    const status = root.querySelector<HTMLElement>('[data-status]')!;
+    const actions = root.querySelector<HTMLElement>('[data-actions]')!;
+    const homeLink = root.querySelector<HTMLElement>('[data-home-link]')!;
+    const { meal, not } = parseRandomParams(location.search);
+    try {
+      const entries = await loadIndex(root.dataset.index!);
+      const pick = pickRandom(entries, { meal, avoid: not });
+      if (pick) {
+        status.textContent = `פותחים את: ${pick.title}`;
+        location.replace(`${pick.url}${randomlyOpenedSearch(meal)}`);
+        return;
+      }
+      status.textContent = meal ? `עדיין אין מתכונים ל${MEAL_LABELS[meal]}.` : 'עדיין אין מתכונים.';
+      root.querySelector<HTMLElement>('[data-any]')!.hidden = !meal;
+    } catch {
+      status.textContent = 'לא הצלחנו לבחור מתכון כרגע. אפשר לנסות שוב או לדפדף בכל המתכונים.';
+    }
+    actions.hidden = false;
+    homeLink.hidden = true;
+  }
+</script>
+
+<style>
+  .random-page h1 {
+    margin-block: 0 0.5rem;
+    font-size: 1.75rem;
+  }
+  .random-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+</style>

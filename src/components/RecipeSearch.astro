@@ -68,7 +68,20 @@ const { gridId } = Astro.props;
     type Prepared,
     type SearchState,
   } from '../lib/search';
-  import { INDEX_VERSION, type IndexEntry, type RecipeIndex } from '../lib/index-schema';
+  import type { IndexEntry } from '../lib/index-schema';
+  import { loadIndex } from '../lib/load-index';
+  import { MEAL_LABELS, type Meal } from '../lib/labels';
+  import { isBuilderMeal } from '../lib/meal-builder';
+
+  /** Keep the "random recipe" / "meal builder" buttons on the active meal filter (R5). */
+  function syncMealLinks(meal: Meal | null) {
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-follow-meal][data-base-href]')) {
+      const m = a.dataset.followMeal === 'builder' && !isBuilderMeal(meal) ? null : meal;
+      a.href = `${a.dataset.baseHref}${m ? `?meal=${m}` : ''}`;
+      const suffix = a.querySelector('[data-meal-suffix]');
+      if (suffix) suffix.textContent = m ? ` · ${MEAL_LABELS[m]}` : '';
+    }
+  }
 
   const form = document.querySelector<HTMLFormElement>('form.search');
   if (form) init(form);
@@ -91,14 +104,12 @@ const { gridId } = Astro.props;
     };
 
     writeForm(parseState(location.search));
+    syncMealLinks(readForm().meal);
+    for (const r of radios) r.addEventListener('change', () => syncMealLinks(readForm().meal));
 
     let prepared: Prepared<IndexEntry>[];
     try {
-      const res = await fetch(form.dataset.index!);
-      if (!res.ok) throw new Error(String(res.status));
-      const index = (await res.json()) as RecipeIndex;
-      if (index.version !== INDEX_VERSION) throw new Error('index version');
-      prepared = prepare(index.recipes);
+      prepared = prepare(await loadIndex(form.dataset.index!));
     } catch {
       status.textContent = 'החיפוש לא זמין כרגע. אפשר לדפדף בכל המתכונים.';
       return;
@@ -138,12 +149,14 @@ const { gridId } = Astro.props;
     noResults.querySelector('[data-clear]')?.addEventListener('click', () => {
       const cleared = { q: '', meal: null };
       writeForm(cleared);
+      syncMealLinks(null);
       apply(cleared, true);
       input.focus();
     });
     window.addEventListener('pageshow', (e) => {
       if (e.persisted) {
         writeForm(parseState(location.search));
+        syncMealLinks(readForm().meal);
         apply(readForm(), false);
       }
     });

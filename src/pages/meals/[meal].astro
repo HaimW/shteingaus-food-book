@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import RecipeGrid from '../../components/RecipeGrid.astro';
+import QuickActions from '../../components/QuickActions.astro';
 import { MEALS, MEAL_LABELS, type Meal } from '../../lib/labels';
 import { withBase } from '../../lib/paths';
 import { recipeView } from '../../lib/recipe';
@@ -29,6 +30,8 @@ const recipes = (await getSortedRecipes()).filter((r) => recipeView(r).meal.incl
       <a href={withBase(`/?meal=${meal}`)}>חיפוש בתוך {label}</a>
     </p>
   </section>
+
+  {recipes.length > 0 && <QuickActions meal={meal} />}
 
   {recipes.length > 0 ? <RecipeGrid recipes={recipes} /> : <p>עדיין אין מתכונים ל{label}.</p>}
 </Base>

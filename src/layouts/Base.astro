@@ -7,7 +7,7 @@ import { mealUrl, withBase } from '../lib/paths';
 interface Props {
   title?: string;
   description?: string;
-  /** Which nav item is the current page: 'home' or a meal key. */
+  /** Which nav item is the current page: 'home', a meal key, 'random' or 'meal-builder'. */
   current?: string;
 }
 
@@ -15,6 +15,8 @@ const { title, description = 'מתכונים משפחתיים של משפחת ש
 const nav = [
   { key: 'home', label: 'כל המתכונים', href: withBase('/') },
   ...MEALS.map((m) => ({ key: m, label: MEAL_SHORT_LABELS[m], href: mealUrl(m) })),
+  { key: 'meal-builder', label: 'בנה לי ארוחה', href: withBase('meal-builder/') },
+  { key: 'random', label: 'מתכון אקראי', href: withBase('random/') },
 ];
 const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
 ---
