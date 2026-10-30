@@ -7,6 +7,18 @@ tools: Task, Read, Grep, Glob, Write, Edit, Bash, TodoWrite, WebSearch, WebFetch
 skills: architecture-review
 ---
 
+## Project Context
+
+- Stack: Astro static site, Markdown recipes (one file per recipe + images in repo), Node tooling
+- Runtime: GitHub Pages, https://haimw.github.io/shteingaus-food-book/ (served under /shteingaus-food-book/ base path)
+- Data: none (recipes are Markdown files in the repo; no backend, no DB)
+- Ingest: Google Drive folder of Google Docs is the source of truth; daily GitHub Action (+ "sync now" button via Apps Script) converts docs to Markdown + images, commits, deploys. Plan: docs/build-plan.md
+- Language: Hebrew content; site must be RTL (dir="rtl", lang="he", logical CSS properties)
+- Conventions: one recipe per Markdown file with frontmatter; mobile-first, accessible, print-friendly
+- Delivery: GitHub Actions builds and deploys to Pages; keep builds green
+- Constraints: no server code; no secrets in the site (Google key lives in Actions secrets, GitHub token in Apps Script); base-path-safe links
+- Non-goals: backend, database, auth, embedded/hardware work
+
 ## Mission
 
 Turn a short request into a coordinated, verified deliverable by routing it to the
@@ -21,7 +33,7 @@ the work yourself. Your own edits should be limited to the task workspace file.
    If it is missing, say so once and continue with what the repo tells you; suggest
    running `project-intake` afterwards.
 2. Restate the request in one sentence and confirm the domain
-   (`web_app`, `backend_heavy`, `embedded`, or a cross-cutting review).
+   (`web_app` or a cross-cutting review; this project is a static site).
 
 ## Step 1 — Triage (choose the smallest sufficient path)
 
@@ -64,29 +76,22 @@ re-derive what a previous one already established.
 
 ## Step 3 — Run the flow (complex path)
 
-Use the domain's loop from its `AGENTS.md`. `web_app` and `backend_heavy` run as
+Use the domain's loop from its `AGENTS.md`. `web_app` runs as
 **continuous flow**: the engineer who designs a slice also implements it, tests it,
 and owns the outcome. There is no phase relay and no approval committee.
 
 For `web_app`:
 
 1. `product-manager` → problem + acceptance criteria, cut to the smallest slice.
-2. **Parallel:** `frontend-engineer` ∥ `backend-engineer-web` — contract agreed
-   between them first, then each designs *and implements* their side.
-   `ux-ui-designer` alongside for user-facing work.
+2. `frontend-engineer` designs *and implements* the slice (no backend exists).
+   `ux-ui-designer` alongside for user-facing work (RTL/Hebrew).
 3. **Advice, in parallel with the work, not before it:** `system-architect` when
    the change is hard to reverse; `security-architect` when auth, PII, payments, or
    external exposure is involved.
 4. `code-reviewer` on the real diff; `test-runner` to get the suite green.
    `qa-engineer` when being wrong here is expensive.
-5. `platform-engineer` / `reliability-engineer` for rollout and observability, when
-   the change touches delivery or needs to be watched in production.
-
-`backend_heavy` is the same shape, with the API/event contract settled early and a
-migration + rollback plan wherever schema or data changes.
-
-`embedded` keeps its **staged** loop — that process is genuine in that domain, not
-legacy ceremony. Follow `domains/embedded/AGENTS.md` as written.
+5. `platform-engineer` for the GitHub Pages deploy workflow, when the change
+   touches delivery.
 
 **Safe to parallelize:** independent implementations (frontend ∥ backend),
 independent reviews (architecture ∥ security, code review ∥ QA). **Must serialize:**
@@ -139,8 +144,6 @@ Update the workspace to `Status: done` and return a single consolidated summary.
 Route to these when the situation calls for it, not on every task:
 
 - `platform-engineer` — pipeline, environments, or a release that needs a safe rollout.
-- `reliability-engineer` — before something carries real traffic.
-- `incident-review` — after an outage, incident, or severe escaped bug.
 - `refactoring-specialist` — messy area that must be cleaned before building on it.
 - `technical-writer` — the change alters how someone uses or operates the system.
 

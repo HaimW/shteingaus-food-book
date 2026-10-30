@@ -6,7 +6,6 @@ Building and operating a **web application product** (UI, APIs, data, delivery, 
 
 ### Roles (agents)
 
-- `backend-engineer-web`: Backend engineer for web-facing APIs/BFF, security, and business logic. Use proactively for web API design and backend debugging.
 - `frontend-engineer`: Frontend engineer for SPA/SSR architecture, performance, and accessibility. Use proactively for web UI implementation plans and reviews.
 - `ux-ui-designer`: UX/UI designer for user flows, UI states, and accessibility-oriented specs. Use proactively when designing web product experiences.
 
@@ -17,8 +16,7 @@ shipping**, and the same people carry it end to end.
 
 1. **Frame it** — `product-manager` states the problem and testable acceptance
    criteria. Skip this when the request is already small and clear.
-2. **Build it** — `frontend-engineer` and/or `backend-engineer-web` design *and*
-   implement, agreeing the API contract between them up front. `ux-ui-designer`
+2. **Build it** — `frontend-engineer` designs *and* implements the slice. `ux-ui-designer`
    works alongside on anything user-facing, not in a phase before it.
    **Engineers write their own tests as part of the change.**
 3. **Review it** — `code-reviewer` on the real diff. Pull in `system-architect` for
@@ -30,7 +28,7 @@ shipping**, and the same people carry it end to end.
    pulling in when being wrong is expensive: it hunts the cases the engineers did
    not think of, rather than duplicating their tests.
 5. **Ship and watch it** — `platform-engineer` owns the paved road so the team can
-   deploy itself; `reliability-engineer` ensures you can tell it is working.
+   deploy itself.
 
 ### Principles
 

@@ -1,0 +1,47 @@
+{
+  "project": "shteingaus-food-book",
+  "description": "Family recipe/food book website",
+  "domains": [
+    "web_app",
+    "cross_cutting"
+  ],
+  "stack": {
+    "site": "Astro",
+    "content": "Markdown recipes",
+    "language": "Hebrew content, RTL"
+  },
+  "deploy": "GitHub Pages via GitHub Actions, https://haimw.github.io/shteingaus-food-book/",
+  "data_stores": "none",
+  "team": "owner; first recipes added manually from Google Docs",
+  "testing": "none yet; build + link check + RTL visual check as bar for done",
+  "ci_cd": "GitHub Actions (to be created)",
+  "performance": "best effort; static and fast",
+  "security": "no PII/auth/payments; secrets: Google service account key (Actions secret), GitHub token in Apps Script",
+  "non_goals": [
+    "backend",
+    "database",
+    "auth",
+    "embedded/hardware"
+  ],
+  "unconfirmed": [],
+  "pruned_agents": [
+    "backend-engineer-web",
+    "backend-engineer-platform",
+    "data-engineer",
+    "database-engineer",
+    "reliability-engineer",
+    "incident-review",
+    "devops-build-engineer-embedded",
+    "embedded-product-manager",
+    "embedded-system-architect",
+    "firmware-engineer",
+    "hardware-integration-engineer",
+    "low-level-software-engineer",
+    "qa-engineer-embedded",
+    "test-automation-engineer-embedded"
+  ],
+  "pruned_skills": [
+    "api-design"
+  ],
+  "ingest": "Google Drive folder (Google Docs) is source of truth; daily GitHub Action + on-demand Apps Script button sync to Markdown + images. See docs/build-plan.md"
+}
