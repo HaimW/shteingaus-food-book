@@ -1,0 +1,63 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import RecipeCard from '../components/RecipeCard.astro';
+import { SITE_TITLE } from '../lib/labels';
+
+const recipes = (await getCollection('recipes')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title, 'he'),
+);
+---
+
+<Base>
+  <section class="intro">
+    <h1>{SITE_TITLE}</h1>
+    <p>כל המתכונים של המשפחה במקום אחד.</p>
+  </section>
+
+  {
+    recipes.length > 0 ? (
+      <ul class="grid" role="list">
+        {recipes.map((recipe) => (
+          <li>
+            <RecipeCard recipe={recipe} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>עדיין אין מתכונים.</p>
+    )
+  }
+</Base>
+
+<style>
+  .intro h1 {
+    margin-block: 0 0.25rem;
+    font-size: 1.75rem;
+  }
+  .intro p {
+    margin-block: 0 1.5rem;
+    color: var(--muted);
+  }
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 36rem) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 60rem) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .intro h1 {
+      font-size: 2.25rem;
+    }
+  }
+</style>

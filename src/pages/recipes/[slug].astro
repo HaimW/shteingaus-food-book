@@ -1,0 +1,182 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import { MEAL_LABELS, DISH_TYPE_LABELS } from '../../lib/labels';
+import { withBase } from '../../lib/paths';
+
+export async function getStaticPaths() {
+  const recipes = await getCollection('recipes');
+  return recipes.map((recipe) => ({ params: { slug: recipe.id }, props: { recipe } }));
+}
+
+interface Props {
+  recipe: CollectionEntry<'recipes'>;
+}
+
+const { recipe } = Astro.props;
+const { Content } = await render(recipe);
+const { title, image, meal = [], dishType = [], servings, prepTime, cookTime, author } = recipe.data;
+// R3: missing or empty ingredients never fail the build; show a red section instead.
+const ingredients = (recipe.data.ingredients ?? []).map((i) => i.trim()).filter(Boolean);
+
+const facts = [
+  { label: 'מנות', value: servings },
+  { label: 'זמן הכנה', value: prepTime },
+  { label: 'זמן בישול', value: cookTime },
+].filter((f) => f.value);
+---
+
+<Base title={title}>
+  <p class="back"><a href={withBase('/')}>→ לכל המתכונים</a></p>
+
+  <article class="recipe">
+    <header class="recipe-header">
+      <h1>{title}</h1>
+      {author && <p class="author">מאת {author}</p>}
+      {
+        (meal.length > 0 || dishType.length > 0) && (
+          <ul class="chips" aria-label="קטגוריות">
+            {meal.map((m) => (
+              <li class="chip">{MEAL_LABELS[m]}</li>
+            ))}
+            {dishType.map((d) => (
+              <li class="chip chip-alt">{DISH_TYPE_LABELS[d]}</li>
+            ))}
+          </ul>
+        )
+      }
+    </header>
+
+    {
+      image && (
+        <Image
+          class="hero"
+          src={image}
+          alt={title}
+          widths={[600, 1000, 1400]}
+          sizes="(min-width: 72rem) 72rem, 100vw"
+          loading="eager"
+        />
+      )
+    }
+
+    {
+      facts.length > 0 && (
+        <dl class="facts">
+          {facts.map((f) => (
+            <div>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )
+    }
+
+    {
+      ingredients.length > 0 ? (
+        <section class="ingredients" aria-labelledby="ingredients-heading">
+          <h2 id="ingredients-heading">מצרכים</h2>
+          <ul>
+            {ingredients.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <section class="ingredients ingredients-missing" aria-labelledby="ingredients-heading">
+          <h2 id="ingredients-heading">מצרכים חסרים</h2>
+          <p>למתכון הזה עדיין לא נרשמו מצרכים.</p>
+        </section>
+      )
+    }
+
+    <div class="recipe-body">
+      <Content />
+    </div>
+  </article>
+</Base>
+
+<style>
+  .back {
+    margin-block: 0 1rem;
+  }
+  .recipe {
+    max-inline-size: 48rem;
+  }
+  .recipe-header h1 {
+    margin-block: 0 0.25rem;
+    font-size: 1.9rem;
+  }
+  .author {
+    margin-block: 0 0.6rem;
+    color: var(--muted);
+  }
+  .chip-alt {
+    background: #e7efdc;
+    color: #4a6130;
+  }
+  .hero {
+    inline-size: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin-block: 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    margin-block: 1rem;
+  }
+  .facts dt {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 600;
+  }
+  .ingredients {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-block: 1.5rem;
+  }
+  .ingredients h2 {
+    margin-block: 0 0.5rem;
+  }
+  .ingredients ul {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+  }
+  .ingredients li + li {
+    margin-block-start: 0.25rem;
+  }
+  .ingredients-missing {
+    background: var(--danger-bg);
+    border: 2px solid var(--danger);
+    color: var(--danger);
+  }
+  .ingredients-missing p {
+    margin: 0;
+  }
+  .recipe-body :global(h2) {
+    margin-block: 1.75rem 0.5rem;
+  }
+  .recipe-body :global(ol),
+  .recipe-body :global(ul) {
+    padding-inline-start: 1.5rem;
+  }
+  .recipe-body :global(li + li) {
+    margin-block-start: 0.4rem;
+  }
+  @media (min-width: 48rem) {
+    .recipe-header h1 {
+      font-size: 2.5rem;
+    }
+  }
+</style>

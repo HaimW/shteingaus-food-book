@@ -1,0 +1,24 @@
+{
+  "name": "shteingaus-food-book",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "check:links": "node scripts/check-links.mjs dist"
+  },
+  "dependencies": {
+    "@fontsource-variable/heebo": "^5.3.0",
+    "astro": "^7.4.4"
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "typescript": "^6.0.3"
+  }
+}

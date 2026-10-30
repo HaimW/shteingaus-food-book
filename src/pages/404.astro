@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import { withBase } from '../lib/paths';
+---
+
+<Base title="הדף לא נמצא">
+  <h1>הדף לא נמצא</h1>
+  <p>אולי המתכון עבר מקום. <a href={withBase('/')}>חזרה לכל המתכונים</a></p>
+</Base>

@@ -1,0 +1,42 @@
+---
+import '@fontsource-variable/heebo';
+import '../styles/global.css';
+import { SITE_TITLE } from '../lib/labels';
+import { withBase } from '../lib/paths';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title, description = 'מתכונים משפחתיים של משפחת שטיינגאוס' } = Astro.props;
+const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
+---
+
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#c0582f" />
+    <link rel="icon" type="image/svg+xml" href={withBase('favicon.svg')} />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">דלג לתוכן</a>
+    <header class="site-header">
+      <div class="container">
+        <a class="site-title" href={withBase('/')}>{SITE_TITLE}</a>
+      </div>
+    </header>
+    <main id="main" class="container">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p>{SITE_TITLE} · באהבה מהמטבח שלנו</p>
+      </div>
+    </footer>
+  </body>
+</html>
