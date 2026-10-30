@@ -1,15 +1,21 @@
 ---
 import '@fontsource-variable/heebo';
 import '../styles/global.css';
-import { SITE_TITLE } from '../lib/labels';
-import { withBase } from '../lib/paths';
+import { MEALS, MEAL_SHORT_LABELS, SITE_TITLE } from '../lib/labels';
+import { mealUrl, withBase } from '../lib/paths';
 
 interface Props {
   title?: string;
   description?: string;
+  /** Which nav item is the current page: 'home' or a meal key. */
+  current?: string;
 }
 
-const { title, description = 'מתכונים משפחתיים של משפחת שטיינגאוס' } = Astro.props;
+const { title, description = 'מתכונים משפחתיים של משפחת שטיינגאוס', current } = Astro.props;
+const nav = [
+  { key: 'home', label: 'כל המתכונים', href: withBase('/') },
+  ...MEALS.map((m) => ({ key: m, label: MEAL_SHORT_LABELS[m], href: mealUrl(m) })),
+];
 const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
 ---
 
@@ -28,6 +34,19 @@ const pageTitle = title ? `${title} | ${SITE_TITLE}` : SITE_TITLE;
     <header class="site-header">
       <div class="container">
         <a class="site-title" href={withBase('/')}>{SITE_TITLE}</a>
+        <nav class="site-nav" aria-label="ניווט ראשי">
+          <ul>
+            {
+              nav.map((item) => (
+                <li>
+                  <a href={item.href} aria-current={item.key === current ? 'page' : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
       </div>
     </header>
     <main id="main" class="container">

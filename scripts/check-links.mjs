@@ -22,5 +22,15 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
     if (!existsSync(resolve(u))) { console.log('BROKEN', f, u); bad++; }
   }
 }
+// The shared recipe index: every url/image must be base-path-safe and exist.
+const indexFile = join(dist, 'recipe-index.json');
+if (!existsSync(indexFile)) { console.log('MISSING recipe-index.json'); bad++; }
+else for (const r of JSON.parse(readFileSync(indexFile, 'utf8')).recipes) {
+  for (const u of [r.url, r.image].filter(Boolean)) {
+    links++;
+    if (!u.startsWith(BASE)) { console.log('NOT BASE-SAFE recipe-index.json', u); bad++; }
+    else if (!existsSync(resolve(u))) { console.log('BROKEN recipe-index.json', u); bad++; }
+  }
+}
 console.log(`${files.filter((f) => f.endsWith('.html')).length} html, ${links} internal refs, ${bad} problems`);
 process.exit(bad ? 1 : 0);

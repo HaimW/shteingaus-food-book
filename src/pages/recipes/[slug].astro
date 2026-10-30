@@ -3,7 +3,7 @@ import { getCollection, render, type CollectionEntry } from 'astro:content';
 import { Image } from 'astro:assets';
 import Base from '../../layouts/Base.astro';
 import { MEAL_LABELS, DISH_TYPE_LABELS } from '../../lib/labels';
-import { withBase } from '../../lib/paths';
+import { mealUrl, withBase } from '../../lib/paths';
 import { recipeView } from '../../lib/recipe';
 
 export async function getStaticPaths() {
@@ -17,7 +17,7 @@ interface Props {
 
 const { recipe } = Astro.props;
 const { Content } = await render(recipe);
-const { title, servings, prepTime, cookTime, author } = recipe.data;
+const { title, servings, prepTime, cookTime, author, tags = [] } = recipe.data;
 // R3: missing ingredients, unknown categories or a missing photo never fail the
 // build; they are shown as issues on the page instead.
 const { meal, dishType, ingredients, image, issues } = recipeView(recipe);
@@ -29,7 +29,7 @@ const facts = [
 ].filter((f) => f.value);
 ---
 
-<Base title={title}>
+<Base title={title} description={ingredients.length > 0 ? `${title}: ${ingredients.slice(0, 5).join(', ')}` : title}>
   <p class="back"><a href={withBase('/')}><span aria-hidden="true">→</span> לכל המתכונים</a></p>
 
   <article class="recipe">
@@ -40,7 +40,11 @@ const facts = [
         (meal.length > 0 || dishType.length > 0) && (
           <ul class="chips" aria-label="קטגוריות">
             {meal.map((m) => (
-              <li class="chip">{MEAL_LABELS[m]}</li>
+              <li>
+                <a class="chip chip-link" href={mealUrl(m)}>
+                  {MEAL_LABELS[m]}
+                </a>
+              </li>
             ))}
             {dishType.map((d) => (
               <li class="chip chip-alt">{DISH_TYPE_LABELS[d]}</li>
@@ -91,26 +95,50 @@ const facts = [
       )
     }
 
-    {
-      ingredients.length > 0 ? (
-        <section class="ingredients" aria-labelledby="ingredients-heading">
-          <h2 id="ingredients-heading">מצרכים</h2>
-          <ul>
-            {ingredients.map((item) => (
-              <li>{item}</li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <section class="ingredients ingredients-missing" aria-labelledby="ingredients-heading">
-          <h2 id="ingredients-heading">מצרכים חסרים</h2>
-          <p>למתכון הזה עדיין לא נרשמו מצרכים.</p>
-        </section>
-      )
-    }
+    <div class="recipe-layout">
+      {
+        ingredients.length > 0 ? (
+          <section class="ingredients" aria-labelledby="ingredients-heading">
+            <h2 id="ingredients-heading">
+              מצרכים <span class="count">({ingredients.length})</span>
+            </h2>
+            <ul>
+              {ingredients.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ) : (
+          <section class="ingredients ingredients-missing" aria-labelledby="ingredients-heading">
+            <h2 id="ingredients-heading">
+              <svg class="warn-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+                <path d="M12 2 1 21h22L12 2z" fill="currentColor" />
+                <path d="M11 9h2v6h-2zM11 17h2v2h-2z" fill="#fff" />
+              </svg>
+              מצרכים חסרים
+            </h2>
+            <p>למתכון הזה עדיין לא נרשמו מצרכים.</p>
+            <p class="hint">כדי לתקן: מוסיפים את רשימת המצרכים (כמות + מצרך בכל שורה) במסמך המתכון.</p>
+          </section>
+        )
+      }
 
-    <div class="recipe-body">
-      <Content />
+      <div class="recipe-body">
+        <Content />
+        {
+          tags.length > 0 && (
+            <ul class="chips tags" aria-label="תגיות">
+              {tags.map((t) => (
+                <li>
+                  <a class="chip chip-tag" href={withBase(`/?q=${encodeURIComponent(t)}`)}>
+                    #{t}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
     </div>
   </article>
 </Base>
@@ -121,6 +149,27 @@ const facts = [
   }
   .recipe {
     max-inline-size: 48rem;
+  }
+  .chip-link,
+  .chip-tag {
+    display: inline-block;
+    text-decoration: none;
+  }
+  .chip-link:hover,
+  .chip-tag:hover {
+    text-decoration: underline;
+  }
+  .chip-tag {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .recipe-body .tags {
+    margin-block-start: 2rem;
+    padding: 0;
+  }
+  .recipe-body .tags li + li {
+    margin: 0;
   }
   .recipe-header h1 {
     margin-block: 0 0.25rem;
@@ -142,7 +191,8 @@ const facts = [
     margin-block: 1.25rem;
     box-shadow: var(--shadow);
   }
-  .hero-missing {
+  .hero.hero-missing {
+    aspect-ratio: 3 / 1;
     display: grid;
     place-items: center;
     background: var(--danger-bg);
@@ -170,8 +220,15 @@ const facts = [
   .facts {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem 1.5rem;
+    gap: 0.75rem;
     margin-block: 1rem;
+  }
+  .facts > div {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.4rem 0.9rem;
+    min-inline-size: 7rem;
   }
   .facts dt {
     font-size: 0.85rem;
@@ -189,7 +246,15 @@ const facts = [
     margin-block: 1.5rem;
   }
   .ingredients h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     margin-block: 0 0.5rem;
+  }
+  .ingredients .count {
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 500;
   }
   .ingredients ul {
     margin: 0;
@@ -198,6 +263,9 @@ const facts = [
   .ingredients li + li {
     margin-block-start: 0.25rem;
   }
+  .ingredients li::marker {
+    color: var(--accent);
+  }
   .ingredients-missing {
     background: var(--danger-bg);
     border: 2px solid var(--danger);
@@ -205,6 +273,15 @@ const facts = [
   }
   .ingredients-missing p {
     margin: 0;
+    font-weight: 600;
+  }
+  .ingredients-missing .hint {
+    margin-block-start: 0.35rem;
+    font-weight: 400;
+    color: var(--text);
+  }
+  .warn-icon {
+    flex: none;
   }
   .recipe-body :global(h2) {
     margin-block: 1.75rem 0.5rem;
@@ -219,6 +296,26 @@ const facts = [
   @media (min-width: 48rem) {
     .recipe-header h1 {
       font-size: 2.5rem;
+    }
+  }
+  /* Desktop: ingredients beside the steps (start side = right in RTL). */
+  @media (min-width: 64rem) {
+    .recipe {
+      max-inline-size: 64rem;
+    }
+    .recipe > :global(img.hero) {
+      aspect-ratio: 16 / 9;
+    }
+    .recipe-layout {
+      display: grid;
+      grid-template-columns: 20rem 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    .ingredients {
+      position: sticky;
+      inset-block-start: 1rem;
+      margin-block: 1.75rem 0;
     }
   }
 </style>

@@ -21,3 +21,11 @@ export const DISH_TYPE_LABELS: Record<DishType, string> = {
 };
 
 export const SITE_TITLE = 'ספר המתכונים משפחת שטיינגאוס';
+
+/** Short meal names for navigation and filter chips. */
+export const MEAL_SHORT_LABELS: Record<Meal, string> = {
+  breakfast: 'בוקר',
+  lunch: 'צהריים',
+  dinner: 'ערב',
+  dessert: 'קינוח',
+};

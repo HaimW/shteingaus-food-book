@@ -13,3 +13,7 @@ export function withBase(path = ''): string {
 export function recipeUrl(id: string): string {
   return withBase(`recipes/${id}/`);
 }
+
+export function mealUrl(meal: string): string {
+  return withBase(`meals/${meal}/`);
+}

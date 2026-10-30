@@ -1,0 +1,269 @@
+---
+// Search box + meal filter for the recipe grid with id `gridId` (build-plan R4).
+// Progressive enhancement: the grid is server-rendered with every recipe; the
+// script loads the shared recipe index, then hides/reorders cards. Matching
+// logic lives in src/lib/search.ts. State is mirrored in the URL (?q=&meal=).
+import { MEALS, MEAL_LABELS } from '../lib/labels';
+import { withBase } from '../lib/paths';
+import { INDEX_PATH } from '../lib/index-schema';
+
+interface Props {
+  gridId: string;
+}
+
+const { gridId } = Astro.props;
+---
+
+<div class="search-panel">
+  <form class="search" role="search" action={withBase('/')} method="get" data-index={withBase(INDEX_PATH)} data-grid={gridId}>
+    <label for="search-q" class="search-label">חיפוש מתכון</label>
+    <div class="search-row">
+      <input
+        id="search-q"
+        name="q"
+        type="search"
+        placeholder="למשל: בצל, עוגה, סבתא רחל"
+        autocomplete="off"
+        enterkeyhint="search"
+        aria-describedby="search-status"
+      />
+      <button type="submit" class="search-submit">חיפוש</button>
+    </div>
+    <fieldset class="meal-filter">
+      <legend>ארוחה</legend>
+      <div class="meal-options">
+        <label class="meal-option">
+          <input type="radio" name="meal" value="" checked />
+          <span>הכל</span>
+        </label>
+        {
+          MEALS.map((m) => (
+            <label class="meal-option">
+              <input type="radio" name="meal" value={m} />
+              <span>{MEAL_LABELS[m]}</span>
+            </label>
+          ))
+        }
+      </div>
+    </fieldset>
+  </form>
+
+  <p id="search-status" class="search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+  <div class="no-results" data-no-results hidden>
+    <p>לא מצאנו מתכון שמתאים לחיפוש. אפשר לנסות מילה אחרת או לבחור &quot;הכל&quot;.</p>
+    <button type="button" class="clear" data-clear>ניקוי החיפוש</button>
+  </div>
+</div>
+
+<script>
+  import {
+    isActive,
+    isMeal,
+    parseState,
+    prepare,
+    resultMessage,
+    search,
+    stateToSearch,
+    type Prepared,
+    type SearchState,
+  } from '../lib/search';
+  import { INDEX_VERSION, type IndexEntry, type RecipeIndex } from '../lib/index-schema';
+
+  const form = document.querySelector<HTMLFormElement>('form.search');
+  if (form) init(form);
+
+  async function init(form: HTMLFormElement) {
+    const input = form.querySelector<HTMLInputElement>('input[name="q"]')!;
+    const radios = [...form.querySelectorAll<HTMLInputElement>('input[name="meal"]')];
+    const status = document.getElementById('search-status')!;
+    const noResults = document.querySelector<HTMLElement>('[data-no-results]')!;
+    const grid = document.getElementById(form.dataset.grid ?? '')!;
+    const items = new Map([...grid.querySelectorAll<HTMLElement>(':scope > li[data-slug]')].map((li) => [li.dataset.slug!, li]));
+
+    const readForm = (): SearchState => {
+      const meal = radios.find((r) => r.checked)?.value;
+      return { q: input.value, meal: isMeal(meal) ? meal : null };
+    };
+    const writeForm = (state: SearchState) => {
+      input.value = state.q;
+      for (const r of radios) r.checked = r.value === (state.meal ?? '');
+    };
+
+    writeForm(parseState(location.search));
+
+    let prepared: Prepared<IndexEntry>[];
+    try {
+      const res = await fetch(form.dataset.index!);
+      if (!res.ok) throw new Error(String(res.status));
+      const index = (await res.json()) as RecipeIndex;
+      if (index.version !== INDEX_VERSION) throw new Error('index version');
+      prepared = prepare(index.recipes);
+    } catch {
+      status.textContent = 'החיפוש לא זמין כרגע. אפשר לדפדף בכל המתכונים.';
+      return;
+    }
+
+    const apply = (state: SearchState, updateUrl: boolean) => {
+      const results = search(prepared, state);
+      const shown = new Set(results.map((r) => r.slug));
+      for (const [slug, li] of items) li.hidden = !shown.has(slug);
+      // Reorder by rank; hidden cards go last.
+      for (const r of results) {
+        const li = items.get(r.slug);
+        if (li) grid.append(li);
+      }
+      for (const [slug, li] of items) if (!shown.has(slug)) grid.append(li);
+      noResults.hidden = results.length > 0;
+      status.textContent = resultMessage(results.length, isActive(state));
+      if (updateUrl) {
+        const url = `${location.pathname}${stateToSearch(state)}${location.hash}`;
+        history.replaceState(history.state, '', url);
+      }
+    };
+
+    let timer: number | undefined;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => apply(readForm(), true), 200);
+    });
+    for (const r of radios) r.addEventListener('change', () => apply(readForm(), true));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      clearTimeout(timer);
+      apply(readForm(), true);
+      // Close the on-screen keyboard on mobile; results are announced by the live region.
+      if (matchMedia('(pointer: coarse)').matches) input.blur();
+    });
+    noResults.querySelector('[data-clear]')?.addEventListener('click', () => {
+      const cleared = { q: '', meal: null };
+      writeForm(cleared);
+      apply(cleared, true);
+      input.focus();
+    });
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        writeForm(parseState(location.search));
+        apply(readForm(), false);
+      }
+    });
+
+    apply(readForm(), false);
+  }
+</script>
+
+<style>
+  .search-panel {
+    margin-block-end: 1.5rem;
+  }
+  .search {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .search-label {
+    display: block;
+    font-weight: 700;
+    margin-block-end: 0.35rem;
+  }
+  .search-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .search-row input {
+    flex: 1;
+    min-inline-size: 0;
+    font: inherit;
+    padding: 0.6rem 0.85rem;
+    border: 2px solid var(--border);
+    border-radius: 0.75rem;
+    background: #fff;
+    color: var(--text);
+  }
+  .search-row input:focus-visible {
+    border-color: var(--accent);
+    outline-offset: 0;
+  }
+  .search-submit,
+  .clear {
+    font: inherit;
+    font-weight: 700;
+    padding: 0.6rem 1.1rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    min-block-size: 2.75rem;
+  }
+  .search-submit:hover,
+  .clear:hover {
+    background: var(--accent-dark);
+  }
+  .meal-filter {
+    border: 0;
+    padding: 0;
+    margin: 0.85rem 0 0;
+    min-inline-size: 0;
+  }
+  .meal-filter legend {
+    padding: 0;
+    font-weight: 700;
+    margin-block-end: 0.35rem;
+  }
+  .meal-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .meal-option {
+    position: relative;
+    cursor: pointer;
+  }
+  /* Visually hidden but focusable radio; the chip shows state and focus. */
+  .meal-option input {
+    position: absolute;
+    opacity: 0;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: 0;
+  }
+  .meal-option span {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding: 0.3rem 0.95rem;
+    border-radius: 999px;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .meal-option input:checked + span {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+  .meal-option input:focus-visible + span {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .search-status {
+    margin: 0.75rem 0 0;
+    color: var(--muted);
+    min-block-size: 1.65em;
+  }
+  .no-results {
+    margin-block-start: 0.5rem;
+    padding: 1rem 1.25rem;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .no-results p {
+    margin-block: 0 0.75rem;
+  }
+</style>
