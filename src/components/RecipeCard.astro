@@ -3,13 +3,15 @@ import { Image } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 import { MEAL_LABELS } from '../lib/labels';
 import { recipeUrl } from '../lib/paths';
+import { recipeView } from '../lib/recipe';
 
 interface Props {
   recipe: CollectionEntry<'recipes'>;
 }
 
 const { recipe } = Astro.props;
-const { title, image, meal = [], author } = recipe.data;
+const { title, author } = recipe.data;
+const { meal, image, issues } = recipeView(recipe);
 ---
 
 <article class="card">
@@ -32,6 +34,7 @@ const { title, image, meal = [], author } = recipe.data;
     <div class="card-body">
       <h2 class="card-title">{title}</h2>
       {author && <p class="card-author">מאת {author}</p>}
+      {issues.length > 0 && <p class="card-fix">צריך לתקן ({issues.length})</p>}
       {
         meal.length > 0 && (
           <ul class="chips" aria-label="ארוחה">
@@ -88,6 +91,17 @@ const { title, image, meal = [], author } = recipe.data;
     margin: 0 0 0.5rem;
     color: var(--muted);
     font-size: 0.9rem;
+  }
+  .card-fix {
+    display: inline-block;
+    margin: 0 0 0.5rem;
+    padding: 0.1rem 0.6rem;
+    border-radius: 999px;
+    background: #fff4d6;
+    border: 1px solid #c98a00;
+    color: #6b4a00;
+    font-size: 0.85rem;
+    font-weight: 600;
   }
   @media (prefers-reduced-motion: reduce) {
     .card {

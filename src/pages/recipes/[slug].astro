@@ -4,6 +4,7 @@ import { Image } from 'astro:assets';
 import Base from '../../layouts/Base.astro';
 import { MEAL_LABELS, DISH_TYPE_LABELS } from '../../lib/labels';
 import { withBase } from '../../lib/paths';
+import { recipeView } from '../../lib/recipe';
 
 export async function getStaticPaths() {
   const recipes = await getCollection('recipes');
@@ -16,9 +17,10 @@ interface Props {
 
 const { recipe } = Astro.props;
 const { Content } = await render(recipe);
-const { title, image, meal = [], dishType = [], servings, prepTime, cookTime, author } = recipe.data;
-// R3: missing or empty ingredients never fail the build; show a red section instead.
-const ingredients = (recipe.data.ingredients ?? []).map((i) => i.trim()).filter(Boolean);
+const { title, servings, prepTime, cookTime, author } = recipe.data;
+// R3: missing ingredients, unknown categories or a missing photo never fail the
+// build; they are shown as issues on the page instead.
+const { meal, dishType, ingredients, image, issues } = recipeView(recipe);
 
 const facts = [
   { label: 'מנות', value: servings },
@@ -49,7 +51,20 @@ const facts = [
     </header>
 
     {
-      image && (
+      issues.length > 0 && (
+        <aside class="needs-fixing" aria-labelledby="needs-fixing-heading">
+          <h2 id="needs-fixing-heading">צריך לתקן</h2>
+          <ul>
+            {issues.map((issue) => (
+              <li>{issue}</li>
+            ))}
+          </ul>
+        </aside>
+      )
+    }
+
+    {
+      image ? (
         <Image
           class="hero"
           src={image}
@@ -58,6 +73,8 @@ const facts = [
           sizes="(min-width: 48rem) 48rem, 100vw"
           loading="eager"
         />
+      ) : (
+        <div class="hero hero-missing">חסרה תמונה</div>
       )
     }
 
@@ -124,6 +141,31 @@ const facts = [
     border-radius: var(--radius);
     margin-block: 1.25rem;
     box-shadow: var(--shadow);
+  }
+  .hero-missing {
+    display: grid;
+    place-items: center;
+    background: var(--danger-bg);
+    border: 2px dashed var(--danger);
+    color: var(--danger);
+    font-weight: 600;
+    box-shadow: none;
+  }
+  .needs-fixing {
+    background: #fff4d6;
+    border: 2px solid #c98a00;
+    color: #6b4a00;
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+    margin-block: 1rem;
+  }
+  .needs-fixing h2 {
+    margin-block: 0 0.25rem;
+    font-size: 1.1rem;
+  }
+  .needs-fixing ul {
+    margin: 0;
+    padding-inline-start: 1.25rem;
   }
   .facts {
     display: flex;

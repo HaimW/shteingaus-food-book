@@ -37,7 +37,10 @@ Each Google Doc becomes one Markdown file in `src/content/recipes/` plus its ima
 
 Body: אופן ההכנה (steps), הערות (notes).
 
-A recipe missing `meal` or `dishType` still publishes; it is listed on the "needs fixing" page and is left out of meal filters / the meal builder until fixed.
+Recipe content never fails the build:
+- `meal` / `dishType` accept the English key or the Hebrew label (e.g. `ארוחת ערב`). Missing or unknown values (not in the allowed list) still publish; the recipe page shows a yellow **"צריך לתקן"** box naming the value and the allowed choices, and the recipe is left out of meal filters / the meal builder for that value until fixed.
+- A missing photo, or an `image` path that doesn't exist, still publishes; the page shows a red "חסרה תמונה" placeholder and the issue is listed in the "צריך לתקן" box.
+- Recipe cards show a "צריך לתקן (n)" badge, and every such recipe is listed on the "needs fixing" page (R9).
 
 ### R3. Ingredients section
 - Every recipe page shows a dedicated **מצרכים** section, rendered from `ingredients`.
