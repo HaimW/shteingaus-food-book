@@ -5,6 +5,8 @@ import Base from '../../layouts/Base.astro';
 import { MEAL_LABELS, DISH_TYPE_LABELS } from '../../lib/labels';
 import { mealUrl, withBase } from '../../lib/paths';
 import { recipeView } from '../../lib/recipe';
+import { APPS_SCRIPT_URL, SITE_URL } from '../../lib/config';
+import StarRating from '../../components/StarRating.astro';
 
 export async function getStaticPaths() {
   const recipes = await getCollection('recipes');
@@ -20,7 +22,21 @@ const { Content } = await render(recipe);
 const { title, servings, prepTime, cookTime, author, tags = [] } = recipe.data;
 // R3: missing ingredients, unknown categories or a missing photo never fail the
 // build; they are shown as issues on the page instead.
-const { meal, dishType, ingredients, image, issues, docUrl } = recipeView(recipe);
+const { meal, dishType, ingredients, image, issues, docUrl, tested, rating } = recipeView(recipe);
+
+// "Tested" toggle and star rating: the Apps Script web app edits the doc's
+// "נוסה" / "דירוג" row as the signed-in family member, starts the sync and links back here.
+const actionUrl = (action: string, value: string) =>
+  APPS_SCRIPT_URL && recipe.data.driveId
+    ? `${APPS_SCRIPT_URL}?${new URLSearchParams({
+        action,
+        doc: recipe.data.driveId,
+        value,
+        back: new URL(`recipes/${recipe.id}/`, SITE_URL).href,
+      })}`
+    : undefined;
+const toggleUrl = actionUrl('tested', tested ? 'no' : 'yes');
+const rateUrls = toggleUrl ? [1, 2, 3, 4, 5].map((n) => actionUrl('rate', String(n))!) : undefined;
 
 const facts = [
   { label: 'מנות', value: servings },
@@ -56,6 +72,26 @@ const facts = [
               <li class="chip chip-alt">{DISH_TYPE_LABELS[d]}</li>
             ))}
           </ul>
+        )
+      }
+      <div class="status">
+        <p class={tested ? 'tested tested-yes' : 'tested tested-no'}>{tested ? '✓ נוסה' : 'טרם נוסה'}</p>
+        <StarRating rating={rating} hrefs={rateUrls} />
+      </div>
+      {
+        (docUrl || toggleUrl) && (
+          <div class="recipe-actions">
+            {toggleUrl && (
+              <a class="button" href={toggleUrl}>
+                {tested ? 'סמנו כלא נוסה' : 'סמנו כנוסה ✓'}
+              </a>
+            )}
+            {docUrl && (
+              <a class="button button-secondary" href={docUrl} target="_blank" rel="noopener">
+                עריכה ב-Google Docs<span class="visually-hidden"> (נפתח בחלון חדש)</span>
+              </a>
+            )}
+          </div>
         )
       }
     </header>
@@ -243,6 +279,35 @@ const facts = [
     color: var(--danger);
     font-weight: 600;
     box-shadow: none;
+  }
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-block-start: 0.5rem;
+  }
+  .tested {
+    display: inline-block;
+    margin: 0;
+    padding: 0.15rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .tested-yes {
+    background: #e3f1dc;
+    color: #2f5d1f;
+  }
+  .tested-no {
+    background: #eee8e2;
+    color: var(--muted);
+  }
+  .recipe-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-block-start: 0.75rem;
   }
   .needs-fixing {
     background: #fff4d6;

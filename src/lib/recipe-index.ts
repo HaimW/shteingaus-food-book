@@ -33,6 +33,8 @@ async function toEntry(recipe: Recipe): Promise<IndexEntry> {
     author: d.author ?? null,
     image,
     issues: view.issues.length,
+    tested: view.tested,
+    rating: view.rating,
     text: {
       title: normalize(d.title),
       ingredients: normalize(view.ingredients.join(' ')),

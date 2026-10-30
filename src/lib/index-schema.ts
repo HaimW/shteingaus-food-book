@@ -5,7 +5,7 @@
 
 import type { Meal, DishType } from './labels';
 
-export const INDEX_VERSION = 1;
+export const INDEX_VERSION = 2;
 /** Path relative to the site base; use withBase(INDEX_PATH) for the URL. */
 export const INDEX_PATH = 'recipe-index.json';
 
@@ -23,6 +23,10 @@ export interface IndexEntry {
   image: string | null;
   /** Number of "צריך לתקן" issues on the recipe page. */
   issues: number;
+  /** Marked as tested ("נוסה") in its Google Doc. */
+  tested: boolean;
+  /** 1–5 stars, 0 = not rated. */
+  rating: number;
   /** Normalized searchable text (see normalize() in search.ts). */
   text: {
     title: string;

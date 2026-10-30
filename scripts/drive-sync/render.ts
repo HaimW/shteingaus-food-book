@@ -35,6 +35,8 @@ export function renderRecipe(draft: RecipeDraft, opts: RenderOptions): Rendered 
   if (f.prepTime) data.prepTime = f.prepTime;
   if (f.cookTime) data.cookTime = f.cookTime;
   if (f.tags.length) data.tags = f.tags;
+  if (f.tested !== undefined) data.tested = f.tested;
+  if (f.rating !== undefined) data.rating = f.rating;
   if (image) data.image = image;
   if (draft.ingredients.length) data.ingredients = draft.ingredients;
   data.driveId = opts.driveId;

@@ -1,0 +1,78 @@
+---
+// 1–5 star family rating. With `hrefs` (one link per star, via the Apps Script web app)
+// the stars are buttons that set the rating in the recipe's Google Doc; without, read-only.
+interface Props {
+  rating: number;
+  hrefs?: string[];
+  size?: 'small' | 'large';
+}
+
+const { rating, hrefs, size = 'large' } = Astro.props;
+const label = rating ? `דירוג: ${rating} מתוך 5` : 'עדיין לא דורג';
+const stars = [1, 2, 3, 4, 5];
+---
+
+{
+  hrefs ? (
+    <div class:list={['stars', size]} role="group" aria-label={`דירוג המשפחה (${label})`}>
+      {stars.map((n) => (
+        <a class:list={['star', { on: n <= rating }]} href={hrefs[n - 1]} aria-label={`${n} כוכבים`} title={`${n} כוכבים`}>
+          ★
+        </a>
+      ))}
+      <span class="stars-text">{rating ? `${rating}/5` : 'דרגו'}</span>
+    </div>
+  ) : (
+    rating > 0 && (
+      <p class:list={['stars', size]} aria-label={label} title={label}>
+        {stars.map((n) => (
+          <span class:list={['star', { on: n <= rating }]} aria-hidden="true">
+            ★
+          </span>
+        ))}
+      </p>
+    )
+  )
+}
+
+<style>
+  .stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    margin: 0;
+    direction: ltr; /* first star on the left, like every rating widget */
+  }
+  .star {
+    color: #d9cfc4;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .star.on {
+    color: #e0a100;
+  }
+  .large .star {
+    font-size: 1.9rem;
+    padding: 0.1rem;
+  }
+  .small .star {
+    font-size: 1rem;
+  }
+  a.star:hover,
+  a.star:focus-visible {
+    transform: scale(1.15);
+  }
+  /* Hovering a star lights it and the ones before it. */
+  .stars:has(a.star:hover) a.star {
+    color: #e0a100;
+  }
+  .stars a.star:hover ~ a.star {
+    color: #d9cfc4;
+  }
+  .stars-text {
+    margin-inline-start: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--muted);
+    direction: rtl;
+  }
+</style>

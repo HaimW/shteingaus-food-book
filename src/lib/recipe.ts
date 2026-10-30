@@ -48,6 +48,10 @@ export interface RecipeView {
   missingImage: boolean;
   /** Link to the source Google Doc, for Drive-synced recipes. */
   docUrl?: string;
+  /** Marked as tested in the doc's "נוסה" row. */
+  tested: boolean;
+  /** 1–5 stars from the doc's "דירוג" row; 0 = not rated. */
+  rating: number;
 }
 
 export function googleDocUrl(driveId: string | undefined): string | undefined {
@@ -64,5 +68,5 @@ export function recipeView(recipe: Recipe): RecipeView {
     image: d.image,
     imageFound: Boolean(image),
   });
-  return { meal, dishType, ingredients, image, issues, missingImage: !image, docUrl: googleDocUrl(d.driveId) };
+  return { meal, dishType, ingredients, image, issues, missingImage: !image, docUrl: googleDocUrl(d.driveId), tested: d.tested === true, rating: d.rating ?? 0 };
 }

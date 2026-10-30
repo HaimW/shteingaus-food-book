@@ -33,6 +33,10 @@ const recipes = defineCollection({
       author: z.string().optional(),
       image: z.string().optional(),
       tags: z.array(z.string()).optional(),
+      // "נוסה" row of the Google Doc (toggled from the recipe page via Apps Script).
+      tested: z.boolean().optional(),
+      // "דירוג" row: 1–5 stars (set from the recipe page via Apps Script).
+      rating: z.number().int().min(1).max(5).optional(),
       driveId: z.string().optional(),
       driveModified: z.coerce.date().optional(),
     }),

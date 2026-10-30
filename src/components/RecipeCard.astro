@@ -4,6 +4,7 @@ import type { CollectionEntry } from 'astro:content';
 import { MEAL_LABELS } from '../lib/labels';
 import { recipeUrl } from '../lib/paths';
 import { recipeView } from '../lib/recipe';
+import StarRating from './StarRating.astro';
 
 interface Props {
   recipe: CollectionEntry<'recipes'>;
@@ -11,7 +12,7 @@ interface Props {
 
 const { recipe } = Astro.props;
 const { title, author } = recipe.data;
-const { meal, image, issues } = recipeView(recipe);
+const { meal, image, issues, tested, rating } = recipeView(recipe);
 ---
 
 <article class="card">
@@ -34,6 +35,8 @@ const { meal, image, issues } = recipeView(recipe);
     <div class="card-body">
       <h2 class="card-title">{title}</h2>
       {author && <p class="card-author">מאת {author}</p>}
+      <StarRating rating={rating} size="small" />
+      {tested && <p class="card-tested">✓ נוסה</p>}
       {issues.length > 0 && <p class="card-fix">צריך לתקן ({issues.length})</p>}
       {
         meal.length > 0 && (
@@ -91,6 +94,16 @@ const { meal, image, issues } = recipeView(recipe);
     margin: 0 0 0.5rem;
     color: var(--muted);
     font-size: 0.9rem;
+  }
+  .card-tested {
+    display: inline-block;
+    margin: 0 0 0.5rem 0.4rem;
+    padding: 0.1rem 0.6rem;
+    border-radius: 999px;
+    background: #e3f1dc;
+    color: #2f5d1f;
+    font-size: 0.85rem;
+    font-weight: 600;
   }
   .card-fix {
     display: inline-block;

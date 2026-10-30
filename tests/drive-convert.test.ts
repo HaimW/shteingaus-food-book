@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { convertDoc, splitValues } from '../scripts/drive-sync/convert';
+import { parseRating, parseTested, convertDoc, splitValues } from '../scripts/drive-sync/convert';
 import { renderRecipe } from '../scripts/drive-sync/render';
 import { readFrontmatter } from '../scripts/drive-sync/sync';
 
@@ -242,5 +242,35 @@ describe('renderRecipe', () => {
     expect(fm).not.toHaveProperty('ingredients');
     expect(fm).not.toHaveProperty('meal');
     expect(markdown).not.toContain('images/image1.jpg');
+  });
+});
+
+describe('"נוסה" (tested) row', () => {
+  it('parses yes / no / empty values', () => {
+    for (const v of ['כן', 'נוסה', '✓', 'V', 'yes']) expect(parseTested(v)).toBe(true);
+    for (const v of ['לא', 'טרם', 'עוד לא', 'x', 'no']) expect(parseTested(v)).toBe(false);
+    for (const v of ['', 'אולי']) expect(parseTested(v)).toBeUndefined();
+  });
+
+  it('reads the row from the details table', () => {
+    const html = '<html><body><table><tr><td>ארוחה</td><td>ארוחת ערב</td></tr><tr><td>נוסה</td><td>כן</td></tr></table><h2>מצרכים</h2><ul><li>ביצה</li></ul></body></html>';
+    expect(convertDoc({ title: 'בדיקה', html }).fields.tested).toBe(true);
+    const none = '<html><body><table><tr><td>ארוחה</td><td>ארוחת ערב</td></tr></table></body></html>';
+    expect(convertDoc({ title: 'בדיקה', html: none }).fields.tested).toBeUndefined();
+  });
+});
+
+describe('"דירוג" (rating) row', () => {
+  it('parses numbers and stars, rejects out-of-range values', () => {
+    expect(parseRating('4')).toBe(4);
+    expect(parseRating('4/5')).toBe(4);
+    expect(parseRating('★★★☆☆')).toBe(3);
+    expect(parseRating('⭐⭐⭐⭐⭐')).toBe(5);
+    for (const v of ['', '0', '7', 'טעים']) expect(parseRating(v)).toBeUndefined();
+  });
+
+  it('reads the row from the details table', () => {
+    const html = '<html><body><table><tr><td>דירוג</td><td>5</td></tr></table><h2>מצרכים</h2><ul><li>ביצה</li></ul></body></html>';
+    expect(convertDoc({ title: 'בדיקה', html }).fields.rating).toBe(5);
   });
 });

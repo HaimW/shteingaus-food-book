@@ -14,6 +14,10 @@ export interface RecipeFields {
   /** Raw value of the doc's slug field (validated by the sync). */
   slug?: string;
   tags: string[];
+  /** "נוסה" row: true = tested, false = not yet, undefined = not filled in. */
+  tested?: boolean;
+  /** "דירוג" row: 1–5 stars; undefined when empty or not understood. */
+  rating?: number;
 }
 
 export type BodyPart = { md: string } | { image: string };
@@ -30,7 +34,7 @@ export interface RecipeDraft {
   notes: string[];
 }
 
-type FieldKey = 'meal' | 'dishType' | 'author' | 'servings' | 'prepTime' | 'cookTime' | 'slug' | 'tags';
+type FieldKey = 'meal' | 'dishType' | 'author' | 'servings' | 'prepTime' | 'cookTime' | 'slug' | 'tags' | 'tested' | 'rating';
 type SectionKey = 'ingredients' | 'steps' | 'notes';
 
 const FIELD_LABELS: Record<FieldKey, string[]> = {
@@ -42,7 +46,25 @@ const FIELD_LABELS: Record<FieldKey, string[]> = {
   cookTime: ['זמן בישול', 'זמן הבישול', 'זמן אפייה', 'זמן אפיה', 'זמן האפייה', 'זמן האפיה', 'זמן בישול אפייה', 'cook time', 'cooktime'],
   slug: ['slug', 'כתובת', 'כתובת באנגלית', 'כתובת url', 'url', 'שם באנגלית', 'כתובת לאתר'],
   tags: ['תגיות', 'תגים', 'תגית', 'tags'],
+  tested: ['נוסה', 'נוסה?', 'נבדק', 'ניסינו', 'tested'],
+  rating: ['דירוג', 'ציון', 'כוכבים', 'rating', 'stars'],
 };
+
+/** "4", "4/5", "★★★★☆" -> 4; undefined when empty or outside 1–5. */
+export function parseRating(value: string): number | undefined {
+  const v = value.trim();
+  const stars = (v.match(/[★⭐]/gu) ?? []).length;
+  const n = stars > 0 ? stars : Number.parseFloat(v.replace(',', '.'));
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? Math.round(n) : undefined;
+}
+
+/** "כן" / "✓" / "לא" ... -> boolean; undefined when empty or not understood. */
+export function parseTested(value: string): boolean | undefined {
+  const v = value.trim().toLowerCase().replace(/[.!]+$/, '');
+  if (/^(כן|נוסה|ניסינו|v|✓|✔|✅|yes|true|1)$/.test(v)) return true;
+  if (/^(לא|טרם|עוד לא|x|✗|✘|no|false|0)$/.test(v)) return false;
+  return undefined;
+}
 
 const SECTION_LABELS: Record<SectionKey, string[]> = {
   ingredients: ['מצרכים', 'המצרכים', 'רכיבים', 'הרכיבים', 'מרכיבים', 'המרכיבים', 'חומרים', 'החומרים', 'רשימת מצרכים', 'מצרכים למתכון', 'ingredients'],
@@ -83,6 +105,8 @@ function setField(ctx: Ctx, key: FieldKey, value: string): boolean {
   const v = value.trim();
   if (key === 'meal' || key === 'dishType') ctx.fields[key] = splitValues(v);
   else if (key === 'tags') ctx.fields.tags = splitValues(v.replace(/#/g, ''));
+  else if (key === 'tested') ctx.fields.tested = parseTested(v);
+  else if (key === 'rating') ctx.fields.rating = parseRating(v);
   else if (v && !/^[-–—_.]+$/.test(v)) ctx.fields[key] = v.replace(/\s*\n\s*/g, ' ');
   return true;
 }
